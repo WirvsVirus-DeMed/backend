@@ -71,14 +71,12 @@ func (med *Medicine) Update(db *sql.DB) {
 	med.Add(db)
 }
 
-// func get(db *sql.DB, searchStr string) ([]*Medicine, error)
-
-// func get(db *sql.DB, searchStr)
-func Get(db *sql.DB, searchStr string) ([]*Medicine, error) {
+// get wrapper to find a set of results
+func get(db *sql.DB, query string, searchStr string) ([]*Medicine, error) {
 	// SELECT * FROM table WHERE instr(title, searchStr) > 0 OR instr(description, searchStr) > 0 OR searchStr == CAST(pzn as text)
 	// SELECT * FROM med WHERE instr(title, '3') > 0 OR instr(description, '3') > 0 OR '3' == CAST(pzn as text);
 	// PZN != ID
-	rows, err := db.Query("select * from med where instr(title, ?) > 0 OR instr(description, ?) > 0 or ? == cast(id as text)", searchStr, searchStr, searchStr)
+	rows, err := db.Query(query, searchStr, searchStr, searchStr)
 	if err != nil {
 		return nil, err
 	}
@@ -112,40 +110,14 @@ func Get(db *sql.DB, searchStr string) ([]*Medicine, error) {
 	return meds, nil
 }
 
+// Get a specific Medicine from the Database based on the search String or the pzn
+func Get(db *sql.DB, searchStr string) ([]*Medicine, error) {
+	return get(db, "select * from med where instr(title, ?) > 0 OR instr(description, ?) > 0 or ? == cast(pzn as text)", searchStr)
+}
+
 // GetAll all the rows of the Database
 func GetAll(db *sql.DB) ([]*Medicine, error) {
-	rows, err := db.Query("select id, title, description, createdAt, owner, amount, pzn from med")
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var meds []*Medicine
-
-	for rows.Next() {
-		var id string
-		var title string
-		var description string
-		var createdAt time.Time
-		var owner string
-		var amount int
-		var pzn int
-
-		err = rows.Scan(&id, &title, &description, &createdAt, &owner, &amount, &pzn)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		med := &Medicine{id, title, description, createdAt, owner, amount, pzn}
-		meds = append(meds, med)
-		fmt.Println(id, title, description, createdAt, owner, amount, pzn)
-	}
-	err = rows.Err()
-	if err != nil {
-		return nil, err
-	}
-
-	return meds, nil
+	return get(db, "select id, title, description, createdAt, owner, amount, pzn from med", "")
 }
 
 // DeleteMedicineTable deletes Medicine from Database

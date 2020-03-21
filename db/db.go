@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3" // Need to be like this
+	_ "github.com/mattn/go-sqlite3" // Needs to be like this
 )
 
 // Medicine is the stuff that makes you healthy
@@ -40,6 +40,7 @@ func (med *Medicine) AddMedicine(db *sql.DB) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	stmt, err := tx.Prepare("insert into med(id, title, desciption, createdAt, owner) values(?, ?, ?, ?, ?)")
 	if err != nil {
 		log.Fatal(err)
@@ -56,26 +57,37 @@ func (med *Medicine) AddMedicine(db *sql.DB) {
 }
 
 // GetMedicine ???
-func (med *Medicine) GetMedicine(db *sql.DB) {
+func (med *Medicine) GetMedicine(db *sql.DB) ([]*Medicine, error) {
 	rows, err := db.Query("select id, title, desciption, createdAt, owner from med")
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	defer rows.Close()
 
+	var meds []*Medicine
+
 	for rows.Next() {
-		var id int
-		var name string
-		err = rows.Scan(&id, &name)
+		var id string
+		var title string
+		var desciption string
+		var createdAt time.Time
+		var owner string
+
+		err = rows.Scan(&id, &title, &desciption, &createdAt, &owner)
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Println(id, name)
+
+		med := &Medicine{id, title, desciption, createdAt, owner}
+		meds = append(meds, med)
+		fmt.Println(id, title, desciption, createdAt, owner)
 	}
 	err = rows.Err()
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
+
+	return meds, nil
 }
 
 // DeleteMedicine deletes Medicine from Database
@@ -83,9 +95,10 @@ func (med *Medicine) DeleteMedicine(db *sql.DB) {
 
 }
 
+// TODO: was macht 'delete'
 func (med *Medicine) CreateMedicineTable(db *sql.DB) {
 	sqlStmt := `
-	create table med (id integer not null primary key, title text, desciption text, createdAt date, owner text);
+	create table med (id integer not null primary key, title text, desciption text, createdAt timestamp, owner text);
 	delete from med;
 	`
 

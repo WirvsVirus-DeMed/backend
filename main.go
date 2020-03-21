@@ -12,6 +12,8 @@ func main() {
 	fmt.Println("DB TEST")
 
 	med := &db.Medicine{"1", "1", "1", time.Now(), "1"}
+	med2 := &db.Medicine{"2", "1", "1", time.Now(), "1"}
+
 	db, err := db.CreateDataBase()
 	if err != nil {
 		log.Fatal(err)
@@ -20,6 +22,7 @@ func main() {
 
 	med.CreateMedicineTable(db)
 	med.AddMedicine(db)
+	med2.AddMedicine(db)
 	med.GetMedicine(db)
 	db.Close()
 }

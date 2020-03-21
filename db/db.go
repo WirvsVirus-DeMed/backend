@@ -18,6 +18,8 @@ type Medicine struct {
 	Desciption string    `json:"desciption"`
 	CreatedAt  time.Time `json:"createdAt"`
 	Owner      string    `json:"owner"`
+	Amount     int       `json:"amount"`
+	Pzn        int       `json:"pzn"`
 }
 
 // Packet for transmitting between Peers
@@ -41,14 +43,13 @@ func (med *Medicine) Add(db *sql.DB) {
 		log.Fatal(err)
 	}
 
-	stmt, err := tx.Prepare("insert into med(id, title, desciption, createdAt, owner) values(?, ?, ?, ?, ?)")
+	stmt, err := tx.Prepare("insert into med(id, title, desciption, createdAt, owner, amount, pzn) values(?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer stmt.Close()
 
-	// _, err = stmt.Exec(i, fmt.Sprintf("こんにちわ世界%03d", i))
-	_, err = stmt.Exec(med.UUID, med.Title, med.Desciption, med.CreatedAt, med.Owner)
+	_, err = stmt.Exec(med.UUID, med.Title, med.Desciption, med.CreatedAt, med.Owner, med.Amount, med.Pzn)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -56,9 +57,26 @@ func (med *Medicine) Add(db *sql.DB) {
 	tx.Commit()
 }
 
-// Get ???
-func (med *Medicine) Get(db *sql.DB) ([]*Medicine, error) {
-	rows, err := db.Query("select id, title, desciption, createdAt, owner from med")
+// Delete Medicine from Database
+func (med *Medicine) Delete(db *sql.DB) {
+	_, err := db.Exec("delete from med where id=?", med.UUID)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+// Update the Medicine object in the Database
+func (med *Medicine) Update(db *sql.DB) {
+	med.Delete(db)
+	med.Add(db)
+}
+
+// func get(db *sql.DB, searchStr)
+
+func Get(db *sql.DB, searchStr string) ([]*Medicine, error) {
+	// SELECT * FROM table WHERE instr(title, searchStr) > 0 OR instr(description, searchStr) > 0 OR searchStr == CAST(pzn as text)
+	// PZN != ID
+	rows, err := db.Query("select * from med where instr(title, ?) > 0 OR instr(description, ?) > 0 or ? == cast(id as text)", searchStr)
 	if err != nil {
 		return nil, err
 	}
@@ -72,15 +90,17 @@ func (med *Medicine) Get(db *sql.DB) ([]*Medicine, error) {
 		var desciption string
 		var createdAt time.Time
 		var owner string
+		var amount int
+		var pzn int
 
-		err = rows.Scan(&id, &title, &desciption, &createdAt, &owner)
+		err = rows.Scan(&id, &title, &desciption, &createdAt, &owner, &amount, &pzn)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		med := &Medicine{id, title, desciption, createdAt, owner}
+		med := &Medicine{id, title, desciption, createdAt, owner, amount, pzn}
 		meds = append(meds, med)
-		fmt.Println(id, title, desciption, createdAt, owner)
+		fmt.Println(id, title, desciption, createdAt, owner, amount, pzn)
 	}
 	err = rows.Err()
 	if err != nil {
@@ -90,17 +110,40 @@ func (med *Medicine) Get(db *sql.DB) ([]*Medicine, error) {
 	return meds, nil
 }
 
-// Delete deletes Medicine from Database
-func (med *Medicine) Delete(db *sql.DB) {
-	_, err := db.Exec("delete from med where id=?", med.UUID)
+// GetAll all the rows of the Database
+func GetAll(db *sql.DB) ([]*Medicine, error) {
+	rows, err := db.Query("select id, title, desciption, createdAt, owner, amount, pzn from med")
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
-}
+	defer rows.Close()
 
-func (med *Medicine) Update(db *sql.DB) {
-	med.Delete(db)
-	med.Add(db)
+	var meds []*Medicine
+
+	for rows.Next() {
+		var id string
+		var title string
+		var desciption string
+		var createdAt time.Time
+		var owner string
+		var amount int
+		var pzn int
+
+		err = rows.Scan(&id, &title, &desciption, &createdAt, &owner, &amount, &pzn)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		med := &Medicine{id, title, desciption, createdAt, owner, amount, pzn}
+		meds = append(meds, med)
+		fmt.Println(id, title, desciption, createdAt, owner, amount, pzn)
+	}
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return meds, nil
 }
 
 // DeleteMedicineTable deletes Medicine from Database
@@ -114,8 +157,7 @@ func DeleteMedicineTable(db *sql.DB) {
 // CreateMedicineTable creates the Medicine Table
 func CreateMedicineTable(db *sql.DB) {
 	sqlStmt := `
-	create table med (id integer not null primary key, title text, desciption text, createdAt timestamp, owner text);`
-	// delete from med;
+	create table med (id integer not null primary key, title text, desciption text, createdAt timestamp, owner text, amount integer, pzn integer);`
 
 	_, err := db.Exec(sqlStmt)
 	if err != nil {
@@ -135,46 +177,3 @@ func CreateDataBase() (*sql.DB, error) {
 
 	return db, nil
 }
-
-// func trash() {
-// 	stmt, err = db.Prepare("select name from med where id = ?")
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	defer stmt.Close()
-// 	var name string
-// 	err = stmt.QueryRow("3").Scan(&name)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	fmt.Println(name)
-
-// 	_, err = db.Exec("delete from med")
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-
-// 	_, err = db.Exec("insert into med(id, name) values(1, 'med'), (2, 'bar'), (3, 'baz')")
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-
-// 	rows, err = db.Query("select id, name from med")
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	defer rows.Close()
-// 	for rows.Next() {
-// 		var id int
-// 		var name string
-// 		err = rows.Scan(&id, &name)
-// 		if err != nil {
-// 			log.Fatal(err)
-// 		}
-// 		fmt.Println(id, name)
-// 	}
-// 	err = rows.Err()
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// }

@@ -35,13 +35,13 @@ func CreateMedicine() {
 		return
 	}
 
-	// tx, err := db.Begin()
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// stmt, err := tx.Prepare("insert into med(id, name) values(0, 'test')")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// defer stmt.Close()
+	tx, err := db.Begin()
+	if err != nil {
+		log.Fatal(err)
+	}
+	stmt, err := tx.Prepare("insert into med(id, name) values(0, 'test')")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stmt.Close()
 }

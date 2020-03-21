@@ -98,6 +98,11 @@ func (med *Medicine) Delete(db *sql.DB) {
 	}
 }
 
+func (med *Medicine) Update(db *sql.DB) {
+	med.Delete(db)
+	med.Add(db)
+}
+
 // DeleteMedicineTable deletes Medicine from Database
 func DeleteMedicineTable(db *sql.DB) {
 	_, err := db.Exec("delete from med")

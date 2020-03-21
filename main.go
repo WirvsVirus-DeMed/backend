@@ -23,7 +23,8 @@ func main() {
 	db.CreateMedicineTable(database)
 	med.Add(database)
 	med2.Add(database)
-	med.Delete(database)
+	med = &db.Medicine{"1", "2", "1", time.Now(), "1"}
+	med.Update(database)
 	med.Get(database)
 	database.Close()
 }

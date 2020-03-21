@@ -4,14 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/backerich/first/server/db"
 	"github.com/gorilla/websocket"
 )
-
-type App struct {
-	d        db.DB
-	handlers map[string]http.HandlerFunc
-}
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -39,9 +33,6 @@ func main() {
 		}
 	})
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.FileServer(http.Dir("/frontend/exported"))
-	})
-
+	http.Handle("/", http.FileServer(http.Dir("frontend/export")))
 	http.ListenAndServe(":8080", nil)
 }

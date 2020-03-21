@@ -14,15 +14,16 @@ func main() {
 	med := &db.Medicine{"1", "1", "1", time.Now(), "1"}
 	med2 := &db.Medicine{"2", "1", "1", time.Now(), "1"}
 
-	db, err := db.CreateDataBase()
+	database, err := db.CreateDataBase()
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
 
-	med.CreateMedicineTable(db)
-	med.AddMedicine(db)
-	med2.AddMedicine(db)
-	med.GetMedicine(db)
-	db.Close()
+	db.CreateMedicineTable(database)
+	med.Add(database)
+	med2.Add(database)
+	med.Delete(database)
+	med.Get(database)
+	database.Close()
 }

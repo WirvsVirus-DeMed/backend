@@ -13,13 +13,13 @@ import (
 
 // Medicine is the stuff that makes you healthy
 type Medicine struct {
-	UUID       string    `json:"uuid"`
-	Title      string    `json:"title"`
-	Desciption string    `json:"desciption"`
-	CreatedAt  time.Time `json:"createdAt"`
-	Owner      string    `json:"owner"`
-	Amount     int       `json:"amount"`
-	Pzn        int       `json:"pzn"`
+	UUID        string    `json:"uuid"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	CreatedAt   time.Time `json:"createdAt"`
+	Owner       string    `json:"owner"`
+	Amount      int       `json:"amount"`
+	Pzn         int       `json:"pzn"`
 }
 
 // Packet for transmitting between Peers
@@ -43,13 +43,13 @@ func (med *Medicine) Add(db *sql.DB) {
 		log.Fatal(err)
 	}
 
-	stmt, err := tx.Prepare("insert into med(id, title, desciption, createdAt, owner, amount, pzn) values(?, ?, ?, ?, ?, ?, ?)")
+	stmt, err := tx.Prepare("insert into med(id, title, description, createdAt, owner, amount, pzn) values(?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(med.UUID, med.Title, med.Desciption, med.CreatedAt, med.Owner, med.Amount, med.Pzn)
+	_, err = stmt.Exec(med.UUID, med.Title, med.Description, med.CreatedAt, med.Owner, med.Amount, med.Pzn)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -71,12 +71,14 @@ func (med *Medicine) Update(db *sql.DB) {
 	med.Add(db)
 }
 
-// func get(db *sql.DB, searchStr)
+// func get(db *sql.DB, searchStr string) ([]*Medicine, error)
 
+// func get(db *sql.DB, searchStr)
 func Get(db *sql.DB, searchStr string) ([]*Medicine, error) {
 	// SELECT * FROM table WHERE instr(title, searchStr) > 0 OR instr(description, searchStr) > 0 OR searchStr == CAST(pzn as text)
+	// SELECT * FROM med WHERE instr(title, '3') > 0 OR instr(description, '3') > 0 OR '3' == CAST(pzn as text);
 	// PZN != ID
-	rows, err := db.Query("select * from med where instr(title, ?) > 0 OR instr(description, ?) > 0 or ? == cast(id as text)", searchStr)
+	rows, err := db.Query("select * from med where instr(title, ?) > 0 OR instr(description, ?) > 0 or ? == cast(id as text)", searchStr, searchStr, searchStr)
 	if err != nil {
 		return nil, err
 	}
@@ -87,20 +89,20 @@ func Get(db *sql.DB, searchStr string) ([]*Medicine, error) {
 	for rows.Next() {
 		var id string
 		var title string
-		var desciption string
+		var description string
 		var createdAt time.Time
 		var owner string
 		var amount int
 		var pzn int
 
-		err = rows.Scan(&id, &title, &desciption, &createdAt, &owner, &amount, &pzn)
+		err = rows.Scan(&id, &title, &description, &createdAt, &owner, &amount, &pzn)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		med := &Medicine{id, title, desciption, createdAt, owner, amount, pzn}
+		med := &Medicine{id, title, description, createdAt, owner, amount, pzn}
 		meds = append(meds, med)
-		fmt.Println(id, title, desciption, createdAt, owner, amount, pzn)
+		fmt.Println(id, title, description, createdAt, owner, amount, pzn)
 	}
 	err = rows.Err()
 	if err != nil {
@@ -112,7 +114,7 @@ func Get(db *sql.DB, searchStr string) ([]*Medicine, error) {
 
 // GetAll all the rows of the Database
 func GetAll(db *sql.DB) ([]*Medicine, error) {
-	rows, err := db.Query("select id, title, desciption, createdAt, owner, amount, pzn from med")
+	rows, err := db.Query("select id, title, description, createdAt, owner, amount, pzn from med")
 	if err != nil {
 		return nil, err
 	}
@@ -123,20 +125,20 @@ func GetAll(db *sql.DB) ([]*Medicine, error) {
 	for rows.Next() {
 		var id string
 		var title string
-		var desciption string
+		var description string
 		var createdAt time.Time
 		var owner string
 		var amount int
 		var pzn int
 
-		err = rows.Scan(&id, &title, &desciption, &createdAt, &owner, &amount, &pzn)
+		err = rows.Scan(&id, &title, &description, &createdAt, &owner, &amount, &pzn)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		med := &Medicine{id, title, desciption, createdAt, owner, amount, pzn}
+		med := &Medicine{id, title, description, createdAt, owner, amount, pzn}
 		meds = append(meds, med)
-		fmt.Println(id, title, desciption, createdAt, owner, amount, pzn)
+		fmt.Println(id, title, description, createdAt, owner, amount, pzn)
 	}
 	err = rows.Err()
 	if err != nil {
@@ -157,7 +159,7 @@ func DeleteMedicineTable(db *sql.DB) {
 // CreateMedicineTable creates the Medicine Table
 func CreateMedicineTable(db *sql.DB) {
 	sqlStmt := `
-	create table med (id integer not null primary key, title text, desciption text, createdAt timestamp, owner text, amount integer, pzn integer);`
+	create table med (id integer not null primary key, title text, description text, createdAt timestamp, owner text, amount integer, pzn integer);`
 
 	_, err := db.Exec(sqlStmt)
 	if err != nil {

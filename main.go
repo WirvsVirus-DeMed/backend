@@ -25,7 +25,7 @@ func main() {
 	med2.Add(database)
 	med = &db.Medicine{"1", "2", "1", time.Now(), "1", 1, 1}
 	med.Update(database)
-	db.GetAll(database)
-	// db.Get(database, "1")
+	// db.GetAll(database)
+	db.Get(database, "3")
 	database.Close()
 }

@@ -34,8 +34,8 @@ type Peer struct {
 	LastSeen time.Time
 }
 
-// AddMedicine adds a Medicine Object to the Database
-func (med *Medicine) AddMedicine(db *sql.DB) {
+// Add adds a Medicine Object to the Database
+func (med *Medicine) Add(db *sql.DB) {
 	tx, err := db.Begin()
 	if err != nil {
 		log.Fatal(err)
@@ -56,8 +56,8 @@ func (med *Medicine) AddMedicine(db *sql.DB) {
 	tx.Commit()
 }
 
-// GetMedicine ???
-func (med *Medicine) GetMedicine(db *sql.DB) ([]*Medicine, error) {
+// Get ???
+func (med *Medicine) Get(db *sql.DB) ([]*Medicine, error) {
 	rows, err := db.Query("select id, title, desciption, createdAt, owner from med")
 	if err != nil {
 		return nil, err
@@ -90,17 +90,27 @@ func (med *Medicine) GetMedicine(db *sql.DB) ([]*Medicine, error) {
 	return meds, nil
 }
 
-// DeleteMedicine deletes Medicine from Database
-func (med *Medicine) DeleteMedicine(db *sql.DB) {
-
+// Delete deletes Medicine from Database
+func (med *Medicine) Delete(db *sql.DB) {
+	_, err := db.Exec("delete from med where id=?", med.UUID)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
-// TODO: was macht 'delete'
-func (med *Medicine) CreateMedicineTable(db *sql.DB) {
+// DeleteMedicineTable deletes Medicine from Database
+func DeleteMedicineTable(db *sql.DB) {
+	_, err := db.Exec("delete from med")
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+// CreateMedicineTable creates the Medicine Table
+func CreateMedicineTable(db *sql.DB) {
 	sqlStmt := `
-	create table med (id integer not null primary key, title text, desciption text, createdAt timestamp, owner text);
-	delete from med;
-	`
+	create table med (id integer not null primary key, title text, desciption text, createdAt timestamp, owner text);`
+	// delete from med;
 
 	_, err := db.Exec(sqlStmt)
 	if err != nil {

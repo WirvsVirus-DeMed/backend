@@ -6,18 +6,22 @@ DeMed matcht Nachfrage und Angebot von Medikamenten und medizinischem Equipment,
 
 ## Get Started
 [Install Go](https://golang.org/doc/install)
+
+Das Projekt Klonen:
  ```bash 
 git clone https://github.com/WirvsVirus-DeMed/backend 
 ```
 ``` bash
 cd backend
 ```
+Die Submodule des Projektes installieren:
 ``` bash 
 git submodule --init 
 ```
 ``` bash 
 git submodule update --remote 
 ```
+Den Code ausführen (und golang Bibliotheken downloaden):
 ``` bash
 go run ./main.go
 ```

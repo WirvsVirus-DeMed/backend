@@ -2,7 +2,6 @@ package db
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"net"
 	"time"
@@ -22,7 +21,7 @@ func (peer *Peer) Add(db *sql.DB) {
 		log.Fatal(err)
 	}
 
-	stmt, err := tx.Prepare("insert into peer(ip, port, lastSeen) values(?, ?, ?)")
+	stmt, err := tx.Prepare("insert or replace into peer(ip, port, lastSeen) values(?, ?, ?)")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -75,7 +74,6 @@ func GetPeers(db *sql.DB, query string, searchStr string) ([]*Peer, error) {
 
 		peer := &Peer{ip, port, lastSeen}
 		peers = append(peers, peer)
-		fmt.Println(ip, port, lastSeen)
 	}
 	err = rows.Err()
 	if err != nil {
@@ -102,7 +100,7 @@ func DeletePeerTable(db *sql.DB) {
 func CreatePeerTable(db *sql.DB) {
 	sqlStmt := `
 	create table if not exists peer (ip blob not null, port integer not null, lastSeen timestamp);
-	create unique index peer_index on peer (ip, port);`
+	create unique index if not exists peer_index on peer (ip, port);`
 
 	_, err := db.Exec(sqlStmt)
 	if err != nil {

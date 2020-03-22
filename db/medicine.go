@@ -25,7 +25,6 @@ func (med *Medicine) Add(db *sql.DB) {
 		log.Fatal(err)
 	}
 
-
 	stmt, err := tx.Prepare("insert into med(id, title, description, amount, pzn) values(?, ?, ?, ?, ?)")
 	if err != nil {
 		log.Fatal(err)
@@ -39,7 +38,6 @@ func (med *Medicine) Add(db *sql.DB) {
 
 	tx.Commit()
 }
-
 
 // Delete Medicine from Database
 func (med *Medicine) Delete(db *sql.DB) {
@@ -113,7 +111,7 @@ func DeleteMedicineTable(db *sql.DB) {
 // CreateMedicineTable creates the Medicine Table
 func CreateMedicineTable(db *sql.DB) {
 	sqlStmt := `
-	create table med (id integer not null primary key, title text, description text, amount integer, pzn integer);`
+	create table if not exists med (id integer not null primary key, title text, description text, amount integer, pzn integer);`
 
 	_, err := db.Exec(sqlStmt)
 	if err != nil {

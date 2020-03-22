@@ -20,6 +20,6 @@ func GetPublicIp() net.IP {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("[*] External Ip:%s\n", ip)
+	fmt.Printf("[*] External Ip: %s\n", ip)
 	return net.ParseIP(string(ip))
 }

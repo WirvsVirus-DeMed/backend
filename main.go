@@ -28,7 +28,7 @@ func main() {
 		"certs/client"+strconv.Itoa(client)+".key",
 		"certs/rootCA.crt",
 		"client"+strconv.Itoa(client),
-		uint32(5000+client),
+		uint32(10011+client),
 		100,
 		100,
 		10*time.Second)
@@ -39,7 +39,7 @@ func main() {
 	go n.PeerDiscovery()
 
 	if client != 0 {
-		n.Connect(net.IPv4(127, 0, 0, 1), 5000)
+		n.Connect(net.IPv4(127, 0, 0, 1), 10011)
 	}
 
 	for {
@@ -47,6 +47,11 @@ func main() {
 		text, _ := reader.ReadString('\n')
 		if strings.ToLower(text) == "d\n" {
 			log.Printf("[d] CurrentConnections: %v\n", n.Clients.Len())
+		} else if strings.ToLower(text) == "unban\n" {
+
+			for e := n.PeerBlackList.Front(); e != nil; e = e.Next() {
+				n.PeerBlackList.Remove(e)
+			}
 		} else if strings.ToLower(text) == "q\n" {
 			return
 		}

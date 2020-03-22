@@ -1,9 +1,9 @@
 package node
 
 import (
-	"WirvsVirus/DeMed/protobuf"
 	"bufio"
 	"crypto/rsa"
+	"github.com/WirvsVirus-DeMed/backend/protobuf"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"log"

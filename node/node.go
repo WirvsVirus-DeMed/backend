@@ -1,13 +1,13 @@
 package node
 
 import (
-	"WirvsVirus/DeMed/protobuf"
-	"WirvsVirus/DeMed/util"
 	"bufio"
 	"container/list"
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"github.com/WirvsVirus-DeMed/backend/protobuf"
+	"github.com/WirvsVirus-DeMed/backend/util"
 	"github.com/golang/protobuf/proto"
 	"io/ioutil"
 	"log"

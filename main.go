@@ -1,9 +1,9 @@
 package main
 
 import (
-	"WirvsVirus/DeMed/node"
 	"bufio"
 	"fmt"
+	"github.com/WirvsVirus-DeMed/backend/node"
 	"log"
 	"net"
 	"os"
@@ -24,7 +24,7 @@ func main() {
 		"certs/client"+strconv.Itoa(client)+".key",
 		"certs/rootCA.crt",
 		"client"+strconv.Itoa(client),
-		uint32(5020+client),
+		uint32(5000+client),
 		100,
 		100)
 

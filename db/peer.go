@@ -55,7 +55,7 @@ func GetPeers(db *sql.DB, query string, searchStr string) ([]*Peer, error) {
 	// SELECT * FROM table WHERE instr(title, searchStr) > 0 OR instr(description, searchStr) > 0 OR searchStr == CAST(pzn as text)
 	// SELECT * FROM peer WHERE instr(title, '3') > 0 OR instr(description, '3') > 0 OR '3' == CAST(pzn as text);
 
-	rows, err := db.Query(query, searchStr, searchStr, searchStr)
+	rows, err := db.Query(query, searchStr)
 	if err != nil {
 		return nil, err
 	}
@@ -84,12 +84,6 @@ func GetPeers(db *sql.DB, query string, searchStr string) ([]*Peer, error) {
 
 	return peers, nil
 }
-
-// TODO:
-// Get a specific peer from the Database based on the search String or the pzn
-// func Get(db *sql.DB, searchStr string) ([]*Peer, error) {
-// 	return GetPeers(db, "select * from peer where instr(title, ?) > 0 OR instr(description, ?) > 0 or ? == cast(pzn as text)", searchStr)
-// }
 
 // GetAllPeers all the rows of the Database
 func GetAllPeers(db *sql.DB) ([]*Peer, error) {

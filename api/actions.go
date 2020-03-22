@@ -1,17 +1,18 @@
 package api
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/WirvsVirus-DeMed/backend/db"
 	"github.com/WirvsVirus-DeMed/backend/model"
 )
 
+// TODO: Error handling
 // User is opening the frontend panel
-func HandleBackendStateReq(msg []byte) []byte {
+func HandleBackendStateReq(msg []byte, database *sql.DB) []byte {
 	var specpacket model.BackendStateRequest
 	err := json.Unmarshal(msg, &specpacket)
 
@@ -19,12 +20,12 @@ func HandleBackendStateReq(msg []byte) []byte {
 		log.Fatal(err)
 	}
 
-	// meds, err := db.GetAll(database)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	med := &db.Medicine{"1", "21", "1", time.Now(), "1", 1, 1}
-	meds := []db.Medicine{*med}
+	meds, err := db.GetAll(database)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// med := &db.Medicine{"1", "21", "1", time.Now(), "1", 1, 1}
+	// meds := []db.Medicine{*med}
 
 	packet := &model.Packet{1, -1, "BackendStateResponse"}
 	res := &model.BackendStateResponse{meds, *packet}

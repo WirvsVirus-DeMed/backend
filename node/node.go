@@ -439,6 +439,8 @@ func (this *Node) HandleMessages() {
 
 				md.origin.SendHello(&pb)
 			}
+
+			md.origin.SendPeerRequest()
 			break
 
 		case Goodbye:

@@ -31,12 +31,14 @@ func main() {
 		uint32(10011+client),
 		100,
 		100,
+		8,
 		10*time.Second)
 
 	go n.Listen()
 	go n.HandleMessages()
 	go n.BroadcastSender()
 	go n.PeerDiscovery()
+	go n.TidyMedicineOffersRoutine()
 
 	if client != 0 {
 		n.Connect(net.IPv4(127, 0, 0, 1), 10011)

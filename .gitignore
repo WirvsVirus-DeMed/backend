@@ -28,4 +28,4 @@ certs/*.crt
 certs/*.sslconf
 
 # exclude protobuf
-protobuf/*.pb.go
+# protobuf/*.pb.go

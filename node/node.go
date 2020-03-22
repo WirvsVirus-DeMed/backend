@@ -10,6 +10,7 @@ import (
 	"github.com/WirvsVirus-DeMed/backend/protobuf"
 	"github.com/WirvsVirus-DeMed/backend/util"
 	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -20,6 +21,8 @@ import (
 )
 
 const DeMedVersion = "alpha_0.1"
+
+var CurrentNode *Node
 
 type Node struct {
 	publicIp          net.IP
@@ -34,11 +37,19 @@ type Node struct {
 	PeerBlackList      list.List
 	PeerBlackListMutex sync.Mutex
 
+	CurrentMedicineOffersMutex  sync.Mutex
+	CurrentMedicineOffers       map[string]protobuf.MedicineOffer_Medicine
+	CurrentMedicineOffersRelays map[string]int
+	maxOfferRelays              uint32
+
 	IncomingMessageQueue  chan *MessageDescriptor
 	BroadcastMessageQueue chan *protobuf.MessageFrame
 }
 
-func (this *Node) Init(localCertFile, localKeyFile, caCertFile, serverName string, port, connectionLimit, bufferedMessages uint32, discoveryInterval time.Duration) {
+func (this *Node) Init(localCertFile, localKeyFile, caCertFile, serverName string, port, connectionLimit, bufferedMessages, maxOfferRelays uint32, discoveryInterval time.Duration) {
+	CurrentNode = this
+	this.maxOfferRelays = maxOfferRelays
+	this.CurrentMedicineOffers = make(map[string]protobuf.MedicineOffer_Medicine)
 	this.Clients.Init()
 	this.PeerBlackList.Init()
 	this.publicIp = util.GetPublicIp()
@@ -237,13 +248,10 @@ func (this *Node) BroadcastSender() {
 			return
 		}
 
-		frameData, _ := proto.Marshal(msg)
-
 		this.clientMutex.Lock()
 		for e := this.Clients.Front(); e != nil; e = e.Next() {
 			c := e.Value.(*Info)
-			c.w.Write(frameData)
-			c.w.Flush()
+			c.SendMessageFramePacked(*msg)
 		}
 		this.clientMutex.Unlock()
 	}
@@ -305,6 +313,21 @@ func (this *Node) PeerDiscovery() {
 		this.clientMutex.Unlock()
 
 		time.Sleep(this.discoveryInterval)
+	}
+}
+
+func (this *Node) TidyMedicineOffersRoutine() {
+	for {
+		this.CurrentMedicineOffersMutex.Lock()
+		for k, v := range this.CurrentMedicineOffers {
+			if t, _ := ptypes.Timestamp(v.Time); t.Before(time.Now().Add(-30 * time.Minute)) {
+				delete(this.CurrentMedicineOffers, k)
+				delete(this.CurrentMedicineOffersRelays, k)
+			}
+		}
+		this.CurrentMedicineOffersMutex.Unlock()
+
+		time.Sleep(10 * time.Minute)
 	}
 }
 
@@ -441,6 +464,7 @@ func (this *Node) HandleMessages() {
 			}
 
 			md.origin.SendPeerRequest()
+			md.origin.SendFullMedicineRequest()
 			break
 
 		case Goodbye:
@@ -498,6 +522,74 @@ func (this *Node) HandleMessages() {
 				go this.Connect(p.Ip, p.Port)
 			}
 
+			break
+
+		case MedicineOffer:
+			medOffer := protobuf.MedicineOffer{}
+			err := proto.Unmarshal(md.msgFrame.Payload, &medOffer)
+			if err != nil {
+				log.Printf("[*] Error while unmarshalling PeerResponse: %v\n", err)
+			}
+
+			relayList := new(list.List)
+			relayList.Init()
+
+			this.CurrentMedicineOffersMutex.Lock()
+			for _, med := range medOffer.Meds {
+				this.CurrentMedicineOffers[med.UUID] = *med
+				this.CurrentMedicineOffersRelays[med.UUID]++
+
+				if uint32(this.CurrentMedicineOffersRelays[med.UUID]) <= this.maxOfferRelays {
+					if t, _ := ptypes.Timestamp(med.Time); t.After(time.Now().Add(30 * time.Minute)) {
+						relayList.PushBack(med)
+					}
+				}
+			}
+			this.CurrentMedicineOffersMutex.Unlock()
+
+			relayArray := make([]*protobuf.MedicineOffer_Medicine, relayList.Len())
+
+			i := 0
+			for e := relayList.Front(); e != nil; e = e.Next() {
+				relayArray[i] = e.Value.(*protobuf.MedicineOffer_Medicine)
+			}
+
+			mo := protobuf.MedicineOffer{
+				Meds: relayArray,
+			}
+			payload, _ := proto.Marshal(&mo)
+
+			this.BroadcastMessageQueue <- &protobuf.MessageFrame{
+				PayloadType: uint32(MedicineOffer),
+				Time:        ptypes.TimestampNow(),
+				Payload:     payload,
+			}
+			break
+
+		case FullMedicineRequest:
+			relayList := new(list.List)
+			relayList.Init()
+
+			relayArray := make([]*protobuf.MedicineOffer_Medicine, len(this.CurrentMedicineOffers))
+
+			this.CurrentMedicineOffersMutex.Lock()
+			i := 0
+			for _, med := range this.CurrentMedicineOffers {
+				relayArray[i] = &med
+				i++
+			}
+			this.CurrentMedicineOffersMutex.Unlock()
+
+			mo := protobuf.MedicineOffer{
+				Meds: relayArray,
+			}
+			payload, _ := proto.Marshal(&mo)
+
+			this.BroadcastMessageQueue <- &protobuf.MessageFrame{
+				PayloadType: uint32(MedicineOffer),
+				Time:        ptypes.TimestampNow(),
+				Payload:     payload,
+			}
 			break
 		}
 	}

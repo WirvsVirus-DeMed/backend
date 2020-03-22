@@ -55,6 +55,9 @@ func (this *Info) SendHello(message *protobuf.Hello) {
 func (this *Info) SendGoodbye() {
 	this.SendMessageFrame(nil, Goodbye)
 }
+func (this *Info) SendFullMedicineRequest() {
+	this.SendMessageFrame(nil, FullMedicineRequest)
+}
 func (this *Info) SendMessageBroadcast(message *protobuf.MessageBroadcast) {
 	data, _ := proto.Marshal(message)
 
@@ -65,6 +68,11 @@ func (this *Info) SendRequestResource(message *protobuf.RequestBroadcast) {
 
 	this.SendMessageFrame(data, RequestResource)
 }
+func (this *Info) SendMedicineOffer(message *protobuf.MedicineOffer) {
+	data, _ := proto.Marshal(message)
+
+	this.SendMessageFrame(data, MedicineOffer)
+}
 func (this *Info) SendMessageFrame(payloadBytes []byte, payloadType PayloadType) {
 	pbFrame := protobuf.MessageFrame{
 		PayloadType: uint32(payloadType),
@@ -72,7 +80,10 @@ func (this *Info) SendMessageFrame(payloadBytes []byte, payloadType PayloadType)
 		Payload:     payloadBytes,
 	}
 
-	frameData, _ := proto.Marshal(&pbFrame)
+	this.SendMessageFramePacked(pbFrame)
+}
+func (this *Info) SendMessageFramePacked(frame protobuf.MessageFrame) {
+	frameData, _ := proto.Marshal(&frame)
 
 	if this.ConnectionState != Closed {
 		_, _ = this.w.Write(frameData)

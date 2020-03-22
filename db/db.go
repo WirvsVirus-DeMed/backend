@@ -5,6 +5,8 @@ import (
 	"os"
 )
 
+var CurrentDb *sql.DB
+
 // RemoveDataBase deletes the data base med
 func RemoveDataBase() {
 	os.Remove("./med.db")
@@ -12,13 +14,14 @@ func RemoveDataBase() {
 
 // CreateDataBase creates a SqLite3 Database named med.db
 func CreateDataBase() (*sql.DB, error) {
-	// Für Debug
-	RemoveDataBase()
-
-	db, err := sql.Open("sqlite3", "./med.db")
+	var err error
+	CurrentDb, err = sql.Open("sqlite3", "./med.db")
 	if err != nil {
 		return nil, err
 	}
 
-	return db, nil
+	CreatePeerTable(CurrentDb)
+	CreateMedicineTable(CurrentDb)
+
+	return CurrentDb, nil
 }

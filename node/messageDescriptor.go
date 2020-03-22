@@ -1,6 +1,6 @@
 package node
 
-import "WirvsVirus/DeMed/protobuf"
+import "github.com/WirvsVirus-DeMed/backend/protobuf"
 
 type MessageDescriptor struct {
 	msgFrame *protobuf.MessageFrame

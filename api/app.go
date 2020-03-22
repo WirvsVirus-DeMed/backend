@@ -11,7 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type Action func([]byte, *sql.DB) []byte
+type Action func([]byte, *model.Packet, *sql.DB) []byte
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -51,7 +51,7 @@ func Api(database *sql.DB) {
 
 			for key, value := range actions {
 				if key == packet.Type {
-					jrep := value(msg, database)
+					jrep := value(msg, &packet, database)
 
 					if err = conn.WriteMessage(msgType, jrep); err != nil {
 						return

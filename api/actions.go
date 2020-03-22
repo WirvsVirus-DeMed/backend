@@ -12,9 +12,10 @@ import (
 
 // TODO: Error handling
 // TODO: Request und Response id ändern
+var idcounter = 1
 
 // User is opening the frontend panel
-func HandleBackendStateReq(msg []byte, database *sql.DB) []byte {
+func HandleBackendStateReq(msg []byte, p *model.Packet, database *sql.DB) []byte {
 	var specpacket model.BackendStateRequest
 	err := json.Unmarshal(msg, &specpacket)
 
@@ -27,7 +28,8 @@ func HandleBackendStateReq(msg []byte, database *sql.DB) []byte {
 		log.Fatal(err)
 	}
 
-	packet := &model.Packet{1, -1, "BackendStateResponse"}
+	packet := &model.Packet{p.ID, idcounter, "BackendStateResponse"}
+	idcounter++
 	res := &model.BackendStateResponse{meds, *packet}
 
 	jrep, err := json.Marshal(res)
@@ -41,7 +43,7 @@ func HandleBackendStateReq(msg []byte, database *sql.DB) []byte {
 }
 
 // ProvideMedRessourceReq User wants to add a new ressource to the local DB
-func ProvideMedRessourceReq(msg []byte, database *sql.DB) []byte {
+func ProvideMedRessourceReq(msg []byte, p *model.Packet, database *sql.DB) []byte {
 	var specpacket model.ProvideMedRessourceRequest
 	err := json.Unmarshal(msg, &specpacket)
 
@@ -56,7 +58,8 @@ func ProvideMedRessourceReq(msg []byte, database *sql.DB) []byte {
 		log.Fatal(err)
 	}
 
-	packet := &model.Packet{1, -1, "ProvideMedRessourceRequest"}
+	packet := &model.Packet{p.ID, idcounter, "ProvideMedRessourceRequest"}
+	idcounter++
 	res := &model.ProvideMedRessourceResponse{true, *packet}
 
 	jrep, err := json.Marshal(res)
@@ -67,12 +70,12 @@ func ProvideMedRessourceReq(msg []byte, database *sql.DB) []byte {
 	return jrep
 }
 
-// // User wants to request an search-task on all peer-clients
-// func SearchMedRessourceReq(msg []byte, database *sql.DB) []byte {
+// ChangeMedRessourceReq User wants to edit or delete an ressource
+// func ChangeMedRessourceReq(msg []byte, database *sql.DB) []byte {
 
 // }
 
-// // User wants to edit or delete an ressource
-// func ChangeMedRessourceReq(msg []byte, database *sql.DB) []byte {
+// SearchMedRessourceReq User wants to request an search-task on all peer-clients
+// func SearchMedRessourceReq(msg []byte, p *model.Packet, database *sql.DB) []byte {
 
 // }

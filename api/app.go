@@ -1,4 +1,4 @@
-package main // api
+package api // api
 
 import (
 	"encoding/json"
@@ -15,13 +15,13 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-func main() {
+func Api() {
 	http.HandleFunc("/websocket", func(w http.ResponseWriter, r *http.Request) {
 		conn, _ := upgrader.Upgrade(w, r, nil) // error ignored for sake of simplicity
 
 		for {
 			// Read message from browser
-			_, msg, err := conn.ReadMessage()
+			msgType, msg, err := conn.ReadMessage()
 			if err != nil {
 				return
 			}
@@ -35,24 +35,8 @@ func main() {
 			}
 
 			// Silly and not Clean but Golang has no fricking Generics
-			if packet.Type == "BackendStateResponse" {
-				var specpacket model.BackendStateResponse
-				err = json.Unmarshal(msg, &specpacket)
-
-				if err != nil {
-					log.Fatal(err)
-				}
-				fmt.Println(specpacket)
-			} else if packet.Type == "ProivideMedRessourceRequest" {
-				var specpacket model.ProivideMedRessourceRequest
-				err = json.Unmarshal(msg, &specpacket)
-
-				if err != nil {
-					log.Fatal(err)
-				}
-				fmt.Println(specpacket)
-			} else if packet.Type == "ProvideMedRessourceResponse" {
-				var specpacket model.ProvideMedRessourceResponse
+			if packet.Type == "ProvideMedRessourceRequest" {
+				var specpacket model.ProvideMedRessourceRequest
 				err = json.Unmarshal(msg, &specpacket)
 
 				if err != nil {
@@ -92,31 +76,13 @@ func main() {
 				}
 				fmt.Println(specpacket)
 			} else if packet.Type == "BackendStateRequest" {
-				var specpacket model.BackendStateRequest
-				err = json.Unmarshal(msg, &specpacket)
+				jrep := HandleBackendStateReq(msg)
 
-				if err != nil {
-					log.Fatal(err)
+				if err = conn.WriteMessage(msgType, jrep); err != nil {
+					return
 				}
-				fmt.Println(specpacket)
-			} else if packet.Type == "BackendStateResponse" {
-				var specpacket model.BackendStateResponse
-				err = json.Unmarshal(msg, &specpacket)
-
-				if err != nil {
-					log.Fatal(err)
-				}
-				fmt.Println(specpacket)
 			} else if packet.Type == "ChangeMedRessourceRequest" {
 				var specpacket model.ChangeMedRessourceRequest
-				err = json.Unmarshal(msg, &specpacket)
-
-				if err != nil {
-					log.Fatal(err)
-				}
-				fmt.Println(specpacket)
-			} else if packet.Type == "ChangeMedRessourceResponse" {
-				var specpacket model.ChangeMedRessourceResponse
 				err = json.Unmarshal(msg, &specpacket)
 
 				if err != nil {

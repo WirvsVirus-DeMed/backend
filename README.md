@@ -8,6 +8,7 @@ DeMed matcht Nachfrage und Angebot von Medikamenten und medizinischem Equipment,
 [Install Go](https://golang.org/doc/install)
  ```bash 
 git clone https://github.com/WirvsVirus-DeMed/backend 
+cd backend
 ```
 ``` bash 
 git submodule --init 

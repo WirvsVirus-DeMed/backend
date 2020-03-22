@@ -11,6 +11,8 @@ import (
 )
 
 // TODO: Error handling
+// TODO: Request und Response id ändern
+
 // User is opening the frontend panel
 func HandleBackendStateReq(msg []byte, database *sql.DB) []byte {
 	var specpacket model.BackendStateRequest
@@ -24,8 +26,6 @@ func HandleBackendStateReq(msg []byte, database *sql.DB) []byte {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// med := &db.Medicine{"1", "21", "1", time.Now(), "1", 1, 1}
-	// meds := []db.Medicine{*med}
 
 	packet := &model.Packet{1, -1, "BackendStateResponse"}
 	res := &model.BackendStateResponse{meds, *packet}
@@ -37,21 +37,42 @@ func HandleBackendStateReq(msg []byte, database *sql.DB) []byte {
 		log.Fatal(err)
 	}
 
-	// fmt.Printf("%s sent: %s\n", conn.RemoteAddr(), string(jrep))
 	return jrep
 }
 
-// // User wants to add a new ressource to the local DB
-// func ProvideMedRessourceReq(req model.ProvideMedRessourceRequest, database *sql.DB) model.ProvideMedRessourceResponse {
+// ProvideMedRessourceReq User wants to add a new ressource to the local DB
+func ProvideMedRessourceReq(msg []byte, database *sql.DB) []byte {
+	var specpacket model.ProvideMedRessourceRequest
+	err := json.Unmarshal(msg, &specpacket)
 
-// }
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(specpacket.Medicine)
+
+	specpacket.Medicine.Add(database)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	packet := &model.Packet{1, -1, "ProvideMedRessourceRequest"}
+	res := &model.ProvideMedRessourceResponse{true, *packet}
+
+	jrep, err := json.Marshal(res)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return jrep
+}
 
 // // User wants to request an search-task on all peer-clients
-// func SearchMedRessourceReq(req model.SearchMedRessourceRequest, database *sql.DB) model.SearchMedRessourceResponse {
+// func SearchMedRessourceReq(msg []byte, database *sql.DB) []byte {
 
 // }
 
 // // User wants to edit or delete an ressource
-// func ChangeMedRessourceReq(req model.ChangeMedRessourceRequest, database *sql.DB) model.ChangeMedRessourceResponse {
+// func ChangeMedRessourceReq(msg []byte, database *sql.DB) []byte {
 
 // }

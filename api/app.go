@@ -22,13 +22,11 @@ func Api(database *sql.DB) {
 	// TODO Action hinzufügen
 	actions := map[string]Action{
 		"ProvideMedRessourceRequest":    ProvideMedRessourceReq,
-		"SearchMedRessourceRequest":     HandleBackendStateReq,
-		"SearchMedRessourceResponse":    HandleBackendStateReq,
+		"SearchMedRessourceRequest":     SearchMedRessourceReq,
 		"RequestMedRessourceRequest":    HandleBackendStateReq,
-		"RequestMedRessourceResponse":   HandleBackendStateReq,
 		"BackendStateRequest":           HandleBackendStateReq, // Hier
 		"ChangeMedRessourceRequest":     ChangeMedRessourceReq,
-		"IncommingMedRessourceResponse": HandleBackendStateReq,
+		"IncommingMedRessourceResponse": HandleBackendStateReq, // we ask
 	}
 
 	http.HandleFunc("/websocket", func(w http.ResponseWriter, r *http.Request) {

@@ -1,51 +1,46 @@
 package main
 
 import (
-	"github.com/WirvsVirus-DeMed/backend/api"
+	"bufio"
+	"fmt"
+	"github.com/WirvsVirus-DeMed/backend/node"
+	"log"
+	"net"
+	"os"
+	"strconv"
+	"strings"
 )
 
 func main() {
-	// fmt.Println("DB TEST")
+	log.SetOutput(os.Stdout)
 
-	// med := &db.Medicine{"1", "21", "1", time.Now(), "1", 1, 1}
-	// med2 := &db.Medicine{"2", "31", "1", time.Now(), "1", 1, 2}
+	client, _ := strconv.Atoi(os.Args[1])
 
-	// database, err := db.CreateDataBase()
-	// if err != nil {
-	// 	log.Fatal(err)
-	// 	return
-	// }
+	fmt.Println("Hello World!")
 
-	// db.CreateMedicineTable(database)
-	// med.Add(database)
-	// med2.Add(database)
-	// med = &db.Medicine{"1", "2", "1", time.Now(), "1", 1, 1}
-	// med.Update(database)
-	// // db.GetAll(database)
-	// db.Get(database, "3")
-	// database.Close()
+	n := node.Node{}
+	n.Init(
+		"certs/client"+strconv.Itoa(client)+".crt",
+		"certs/client"+strconv.Itoa(client)+".key",
+		"certs/rootCA.crt",
+		"client"+strconv.Itoa(client),
+		uint32(5000+client),
+		100,
+		100)
 
-	// var a []byte = []byte("1")
-	// var b []byte = []byte("2")
-	// var c []byte = []byte("3")
+	go n.Listen()
+	go n.HandleMessages()
+	go n.BroadcastSender()
 
-	// peer1 := &db.Peer{'1', a, 443, time.Now()}
-	// peer2 := &db.Peer{'2', b, 80, time.Now()}
+	n.Connect(net.IPv4(127, 0, 0, 1), 5000)
 
-	// database, err := db.CreateDataBase()
-	// if err != nil {
-	// 	log.Fatal(err)
-	// 	return
-	// }
-
-	// db.CreatePeerTable(database)
-	// peer1.Add(database)
-	// peer2.Add(database)
-	// peer := &db.Peer{'1', c, 443, time.Now()}
-	// peer.Update(database)
-	// db.GetAllPeers(database)
-	// // db.Get(database, "1")
-	// database.Close()
-
-	api.Api()
+	for {
+		reader := bufio.NewReader(os.Stdin)
+		text, _ := reader.ReadString('\n')
+		if strings.ToLower(text) == "d\n" {
+			log.Printf("[d] CurrentConnections: %v\n", n.Clients.Len())
+		} else if strings.ToLower(text) == "q\n" {
+			return
+		}
+	}
 }

@@ -1,0 +1,12 @@
+syntax = "proto3";
+package DeMed;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "protobuf";
+
+message MessageFrame {
+    uint32 payloadType = 1;
+    google.protobuf.Timestamp time = 2;
+    bytes payload = 3;
+}

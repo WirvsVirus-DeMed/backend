@@ -1,0 +1,16 @@
+syntax = "proto3";
+package DeMed;
+
+option go_package = "protobuf";
+
+message Hello {
+    message PublicKey{
+        bytes N = 1;
+        int32 E = 2;
+    }
+
+    string DeMedVersion = 1;
+    bytes Ip = 2;
+    uint32 Port = 3;
+    PublicKey PubKey = 4;
+}

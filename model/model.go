@@ -10,7 +10,7 @@ type Packet struct {
 }
 
 type ProvideMedRessourceRequest struct {
-	Medicine db.Medicine `json:"ressource"`
+	Medicine *db.Medicine `json:"ressource"`
 	Packet
 }
 
@@ -25,7 +25,7 @@ type SearchMedRessourceRequest struct {
 }
 
 type SearchMedRessourceResponse struct {
-	Medicines []db.Medicine `json:"ressources"`
+	Medicines []*db.Medicine `json:"ressources"`
 	Packet
 }
 
@@ -45,14 +45,14 @@ type BackendStateRequest struct {
 }
 
 type BackendStateResponse struct {
-	OwnItems []db.Medicine `json:"ownItems"`
+	OwnItems []*db.Medicine `json:"ownItems"`
 	Packet
 }
 
 type ChangeMedRessourceRequest struct {
-	MedicineUUID   string      `json:"ressourceUuid"`
-	Remove         bool        `json:"remove"`
-	EditedMedicine db.Medicine `json:"editedRessource"`
+	MedicineUUID   string       `json:"ressourceUuid"`
+	Remove         bool         `json:"remove"`
+	EditedMedicine *db.Medicine `json:"editedRessource"`
 	Packet
 }
 

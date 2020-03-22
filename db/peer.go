@@ -52,11 +52,11 @@ func (peer *Peer) Update(db *sql.DB) {
 }
 
 // get wrapper to find a set of results
-func getPeers(db *sql.DB, query string, searchStr string) ([]*Peer, error) {
+func getPeers(db *sql.DB, query string, searchStr int) ([]*Peer, error) {
 	// SELECT * FROM table WHERE instr(title, searchStr) > 0 OR instr(description, searchStr) > 0 OR searchStr == CAST(pzn as text)
 	// SELECT * FROM peer WHERE instr(title, '3') > 0 OR instr(description, '3') > 0 OR '3' == CAST(pzn as text);
 
-	rows, err := db.Query(query, searchStr, searchStr, searchStr)
+	rows, err := db.Query(query, searchStr)
 	if err != nil {
 		return nil, err
 	}
@@ -87,15 +87,14 @@ func getPeers(db *sql.DB, query string, searchStr string) ([]*Peer, error) {
 	return peers, nil
 }
 
-// TODO:
-// Get a specific peer from the Database based on the search String or the pzn
-// func Get(db *sql.DB, searchStr string) ([]*Peer, error) {
-// 	return getPeers(db, "select * from peer where instr(title, ?) > 0 OR instr(description, ?) > 0 or ? == cast(pzn as text)", searchStr)
-// }
+// GetPeer a specific peer from the Database based on the search String or the pzn
+func GetPeer(db *sql.DB, id int) ([]*Peer, error) {
+	return getPeers(db, "select * from peer where id=?", id)
+}
 
 // GetAllPeers all the rows of the Database
 func GetAllPeers(db *sql.DB) ([]*Peer, error) {
-	return getPeers(db, "select * from peer", "")
+	return getPeers(db, "select * from peer", 0)
 }
 
 // DeletePeerTable deletes Peerbacke from Database

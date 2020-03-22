@@ -4,20 +4,18 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"time"
 
 	_ "github.com/mattn/go-sqlite3" // Needs to be like this
 )
 
 // Medicine is the stuff that makes you healthy
 type Medicine struct {
-	UUID        string    `json:"uuid"`
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	CreatedAt   time.Time `json:"createdAt"`
-	Owner       string    `json:"owner"`
-	Amount      int       `json:"amount"`
-	Pzn         int       `json:"pzn"`
+	UUID        string `json:"uuid"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Owner       Peer   `json:"owner"`
+	Amount      int    `json:"amount"`
+	Pzn         int    `json:"pzn"`
 }
 
 // Add adds a Medicine Object to the Database
@@ -27,19 +25,24 @@ func (med *Medicine) Add(db *sql.DB) {
 		log.Fatal(err)
 	}
 
-	stmt, err := tx.Prepare("insert into med(id, title, description, createdAt, owner, amount, pzn) values(?, ?, ?, ?, ?, ?, ?)")
+	fmt.Println(med)
+
+	stmt, err := tx.Prepare("insert into med(id, title, description, amount, pzn) values(?, ?, ?, ?, ?)")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(med.UUID, med.Title, med.Description, med.CreatedAt, med.Owner, med.Amount, med.Pzn)
+	_, err = stmt.Exec(med.UUID, med.Title, med.Description, med.Amount, med.Pzn)
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	fmt.Println("HELLO2")
 	tx.Commit()
 }
+
+// &{2 31 1 2020-03-22 12:44:42.188323599 +0100 CET m=+0.004346859 {0 <nil> 0 0001-01-01 00:00:00 +0000 UTC} 1 2}
+// &{aa0e9b1b-fc8f-4c70-8b55-55b051d1670a 1 1 2020-03-22 11:45:01.759 +0000 UTC {0 <nil> 0 0001-01-01 00:00:00 +0000 UTC} 1 1}
 
 // Delete Medicine from Database
 func (med *Medicine) Delete(db *sql.DB) {
@@ -72,19 +75,17 @@ func get(db *sql.DB, query string, searchStr string) ([]*Medicine, error) {
 		var id string
 		var title string
 		var description string
-		var createdAt time.Time
-		var owner string
 		var amount int
 		var pzn int
 
-		err = rows.Scan(&id, &title, &description, &createdAt, &owner, &amount, &pzn)
+		err = rows.Scan(&id, &title, &description, &amount, &pzn)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		med := &Medicine{id, title, description, createdAt, owner, amount, pzn}
+		med := &Medicine{id, title, description, Peer{}, amount, pzn}
 		meds = append(meds, med)
-		fmt.Println(id, title, description, createdAt, owner, amount, pzn)
+		fmt.Println(id, title, description, amount, pzn)
 	}
 	err = rows.Err()
 	if err != nil {
@@ -101,7 +102,7 @@ func Get(db *sql.DB, searchStr string) ([]*Medicine, error) {
 
 // GetAll all the rows of the Database
 func GetAll(db *sql.DB) ([]*Medicine, error) {
-	return get(db, "select id, title, description, createdAt, owner, amount, pzn from med", "")
+	return get(db, "select id, title, description, amount, pzn from med", "")
 }
 
 // DeleteMedicineTable deletes Medicine from Database
@@ -115,7 +116,7 @@ func DeleteMedicineTable(db *sql.DB) {
 // CreateMedicineTable creates the Medicine Table
 func CreateMedicineTable(db *sql.DB) {
 	sqlStmt := `
-	create table med (id integer not null primary key, title text, description text, createdAt timestamp, owner text, amount integer, pzn integer);`
+	create table med (id integer not null primary key, title text, description text, amount integer, pzn integer);`
 
 	_, err := db.Exec(sqlStmt)
 	if err != nil {

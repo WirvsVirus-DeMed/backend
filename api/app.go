@@ -1,6 +1,7 @@
 package api // api
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -10,22 +11,22 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type Action func(msg []byte) []byte
+type Action func([]byte, *sql.DB) []byte
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 }
 
-func Api() {
+func Api(database *sql.DB) {
 	// TODO Action hinzufügen
 	actions := map[string]Action{
-		"ProvideMedRessourceRequest":    HandleBackendStateReq,
+		"ProvideMedRessourceRequest":    ProvideMedRessourceReq,
 		"SearchMedRessourceRequest":     HandleBackendStateReq,
 		"SearchMedRessourceResponse":    HandleBackendStateReq,
 		"RequestMedRessourceRequest":    HandleBackendStateReq,
 		"RequestMedRessourceResponse":   HandleBackendStateReq,
-		"BackendStateRequest":           HandleBackendStateReq,
+		"BackendStateRequest":           HandleBackendStateReq, // Hier
 		"ChangeMedRessourceRequest":     HandleBackendStateReq,
 		"IncommingMedRessourceResponse": HandleBackendStateReq,
 	}
@@ -50,7 +51,7 @@ func Api() {
 
 			for key, value := range actions {
 				if key == packet.Type {
-					jrep := value(msg)
+					jrep := value(msg, database)
 
 					if err = conn.WriteMessage(msgType, jrep); err != nil {
 						return

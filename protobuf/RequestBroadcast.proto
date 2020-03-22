@@ -1,0 +1,13 @@
+syntax = "proto3";
+package DeMed;
+
+option go_package = "protobuf";
+
+message RequestBroadcast {
+    bytes Origin = 1;
+    bytes Hash = 2;
+    string Text = 3;
+    string PZN = 4;
+    string Name = 5;
+    uint32 Quantity = 6;
+}

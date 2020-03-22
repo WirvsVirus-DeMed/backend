@@ -16,3 +16,16 @@
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
+
+# ide settings
+.idea/
+
+# exclude certs
+certs/*.key
+certs/*.srl
+certs/*.csr
+certs/*.crt
+certs/*.sslconf
+
+# exclude protobuf
+protobuf/*.pb.go

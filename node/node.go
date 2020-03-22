@@ -27,10 +27,12 @@ type Node struct {
 	connectionLimit   uint32
 	discoveryInterval time.Duration
 
-	config      *tls.Config
-	listener    net.Listener
-	Clients     list.List
-	clientMutex sync.Mutex
+	config             *tls.Config
+	listener           net.Listener
+	Clients            list.List
+	clientMutex        sync.Mutex
+	PeerBlackList      list.List
+	PeerBlackListMutex sync.Mutex
 
 	IncomingMessageQueue  chan *MessageDescriptor
 	BroadcastMessageQueue chan *protobuf.MessageFrame
@@ -38,6 +40,7 @@ type Node struct {
 
 func (this *Node) Init(localCertFile, localKeyFile, caCertFile, serverName string, port, connectionLimit, bufferedMessages uint32, discoveryInterval time.Duration) {
 	this.Clients.Init()
+	this.PeerBlackList.Init()
 	this.publicIp = util.GetPublicIp()
 	this.discoveryInterval = discoveryInterval
 	this.connectionLimit = connectionLimit
@@ -126,16 +129,26 @@ func (this *Node) HandleConnection(info *Info) {
 			return
 		} else if err != nil {
 			log.Println(err)
+			pp := PeerPunish{}
 			this.clientMutex.Lock()
 			for e := this.Clients.Front(); e != nil; e = e.Next() {
 				c := e.Value.(*Info)
 
 				if c == info {
 					this.Clients.Remove(e)
-					return
+					pp = PeerPunish{
+						Peer:  *c.Peer,
+						until: time.Now().Add(10 * time.Minute),
+					}
+					break
 				}
 			}
 			this.clientMutex.Unlock()
+
+			this.PeerBlackListMutex.Lock()
+			this.PeerBlackList.PushBack(pp)
+			this.PeerBlackListMutex.Unlock()
+			return
 		}
 
 		msgFrame := new(protobuf.MessageFrame)
@@ -161,7 +174,7 @@ func (this *Node) Listen() {
 	for {
 		conn, err := this.listener.Accept()
 		if err != nil {
-			log.Fatalf("Error while accepting client: %v", err)
+			log.Printf("Error while accepting client: %v", err)
 		}
 
 		info := Info{
@@ -180,14 +193,30 @@ func (this *Node) Connect(ip net.IP, port uint32) {
 	cfg := tls.Config{
 		Certificates: this.config.Certificates,
 		RootCAs:      this.config.ClientCAs,
-		//ClientCAs:		this.config.ClientCAs,
-		ServerName: "DeMed-Node",
-		ClientAuth: tls.RequireAndVerifyClientCert,
+		ServerName:   "DeMed-Node",
+		ClientAuth:   tls.RequireAndVerifyClientCert,
 	}
 
-	conn, err := tls.Dial("tcp", ip.String()+":"+strconv.Itoa(int(port)), &cfg)
+	tcpVersion := "tcp"
+	if ip.To4() != nil {
+		tcpVersion += "4"
+	} else {
+		tcpVersion += "6"
+	}
+
+	conn, err := tls.Dial(tcpVersion, "["+ip.String()+"]:"+strconv.Itoa(int(port)), &cfg)
 	if err != nil {
-		log.Fatalf("Could not connect to %v. Reason: %v", ip.String()+":"+strconv.Itoa(int(port)), err)
+		log.Printf("Could not connect to %v. Reason: %v", ip.String()+":"+strconv.Itoa(int(port)), err)
+		this.PeerBlackListMutex.Lock()
+		this.PeerBlackList.PushBack(PeerPunish{
+			Peer: net.TCPAddr{
+				IP:   ip,
+				Port: int(port),
+			},
+			until: time.Now().Add(10 * time.Minute),
+		})
+		this.PeerBlackListMutex.Unlock()
+		return
 	}
 
 	info := Info{
@@ -217,6 +246,65 @@ func (this *Node) BroadcastSender() {
 			c.w.Flush()
 		}
 		this.clientMutex.Unlock()
+	}
+}
+
+func (this *Node) PeerDiscovery() {
+	for {
+		this.PeerBlackListMutex.Lock()
+		for e := this.PeerBlackList.Front(); e != nil; e = e.Next() {
+			p := e.Value.(PeerPunish)
+
+			if p.until.Before(time.Now()) {
+				this.PeerBlackList.Remove(e)
+			}
+		}
+		this.PeerBlackListMutex.Unlock()
+
+		peers, _ := db.GetAllPeers(db.CurrentDb)
+
+		blackListShadow := new(list.List)
+		blackListShadow.Init()
+		this.PeerBlackListMutex.Lock()
+		for e := this.PeerBlackList.Front(); e != nil; e = e.Next() {
+			pp := e.Value.(PeerPunish)
+			blackListShadow.PushBack(pp)
+		}
+		this.PeerBlackListMutex.Unlock()
+
+		this.clientMutex.Lock()
+		for _, p := range peers {
+			connect := true
+
+			for e := blackListShadow.Front(); e != nil; e = e.Next() {
+				pp := e.Value.(PeerPunish)
+
+				if p.Port == uint32(pp.Peer.Port) && p.IP.Equal(pp.Peer.IP) {
+					connect = false
+					break
+				}
+			}
+			if !connect {
+				continue
+			}
+
+			for e := this.Clients.Front(); e != nil; e = e.Next() {
+				c := e.Value.(*Info)
+
+				if (c.Peer != nil && (c.Peer.IP.Equal(p.IP) && uint32(c.Peer.Port) == p.Port)) ||
+					(c.RemotePeer.IP.Equal(p.IP) && uint32(c.RemotePeer.Port) == p.Port) {
+					connect = false
+					break
+				}
+			}
+
+			if connect {
+				go this.Connect(p.IP, p.Port)
+			}
+		}
+		this.clientMutex.Unlock()
+
+		time.Sleep(this.discoveryInterval)
 	}
 }
 
@@ -296,16 +384,29 @@ func (this *Node) HandleMessages() {
 				}
 			}
 
+			blacklistShadow := new(list.List)
 			if clientsDirty {
+				blacklistShadow.Init()
 				for e := this.Clients.Front(); e != nil; e = e.Next() {
 					c := e.Value.(*Info)
 
 					if c.ConnectionState == Closed {
 						this.Clients.Remove(e)
+						blacklistShadow.PushBack(PeerPunish{
+							Peer:  *c.Peer,
+							until: time.Now().Add(30 * time.Minute),
+						})
 					}
 				}
 			}
 			this.clientMutex.Unlock()
+
+			this.PeerBlackListMutex.Lock()
+			for e := blacklistShadow.Front(); e != nil; e = e.Next() {
+				c := e.Value.(PeerPunish)
+				this.PeerBlackList.PushBack(c)
+			}
+			this.PeerBlackListMutex.Unlock()
 
 			if md.origin.ConnectionState == Closed {
 				continue
@@ -397,26 +498,5 @@ func (this *Node) HandleMessages() {
 
 			break
 		}
-	}
-}
-
-func (this *Node) PeerDiscovery() {
-	for {
-		peers, _ := db.GetAllPeers(db.CurrentDb)
-
-		this.clientMutex.Lock()
-		for _, p := range peers {
-			for e := this.Clients.Front(); e != nil; e = e.Next() {
-				c := e.Value.(*Info)
-
-				if (c.Peer != nil && (!c.Peer.IP.Equal(p.IP) || uint32(c.Peer.Port) != p.Port)) ||
-					!c.RemotePeer.IP.Equal(p.IP) || uint32(c.RemotePeer.Port) == p.Port {
-					go this.Connect(p.IP, p.Port)
-				}
-			}
-		}
-		this.clientMutex.Unlock()
-
-		time.Sleep(this.discoveryInterval)
 	}
 }

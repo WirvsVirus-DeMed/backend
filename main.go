@@ -1,55 +1,61 @@
 package main
 
 import (
-	"github.com/WirvsVirus-DeMed/backend/api"
+	"bufio"
+	"fmt"
 	"github.com/WirvsVirus-DeMed/backend/db"
+	"github.com/WirvsVirus-DeMed/backend/node"
+	"log"
+	"net"
+	"os"
+	"strconv"
+	"strings"
+	"time"
 )
 
 func main() {
-	// log.SetOutput(os.Stdout)
+	log.SetOutput(os.Stdout)
 
-	// client, _ := strconv.Atoi(os.Args[1])
+	_, _ = db.CreateDataBase()
 
-	// fmt.Println("Hello World!")
+	client, _ := strconv.Atoi(os.Args[1])
 
-	// n := node.Node{}
-	// n.Init(
-	// 	"certs/client"+strconv.Itoa(client)+".crt",
-	// 	"certs/client"+strconv.Itoa(client)+".key",
-	// 	"certs/rootCA.crt",
-	// 	"client"+strconv.Itoa(client),
-	// 	uint32(5000+client),
-	// 	100,
-	// 	100)
+	fmt.Println("Hello World!")
 
-	// go n.Listen()
-	// go n.HandleMessages()
-	// go n.BroadcastSender()
+	n := node.Node{}
+	n.Init(
+		"certs/client"+strconv.Itoa(client)+".crt",
+		"certs/client"+strconv.Itoa(client)+".key",
+		"certs/rootCA.crt",
+		"client"+strconv.Itoa(client),
+		uint32(10011+client),
+		100,
+		100,
+		8,
+		10*time.Second)
 
-	// n.Connect(net.IPv4(127, 0, 0, 1), 5000)
+	go n.Listen()
+	go n.HandleMessages()
+	go n.BroadcastSender()
+	go n.PeerDiscovery()
+	go n.TidyMedicineOffersRoutine()
 
-	// for {
-	// 	reader := bufio.NewReader(os.Stdin)
-	// 	text, _ := reader.ReadString('\n')
-	// 	if strings.ToLower(text) == "d\n" {
-	// 		log.Printf("[d] CurrentConnections: %v\n", n.Clients.Len())
-	// 	} else if strings.ToLower(text) == "q\n" {
-	// 		return
-	// 	}
-	// }
+	if client != 0 {
+		n.Connect(net.IPv4(127, 0, 0, 1), 10011)
+	}
 
-	database, _ := db.CreateDataBase()
-	db.CreateMedicineTable(database)
-	med := &db.Medicine{"1", "21", "1", db.Peer{}, 1, 1}
-	med2 := &db.Medicine{"2", "31", "1", db.Peer{}, 1, 2}
+	for {
+		reader := bufio.NewReader(os.Stdin)
+		text, _ := reader.ReadString('\n')
+		if strings.ToLower(text) == "d\n" {
+			log.Printf("[d] CurrentConnections: %v\n", n.Clients.Len())
+		} else if strings.ToLower(text) == "unban\n" {
 
-	med.Add(database)
-	med2.Add(database)
-	// med = &db.Medicine{"1", "2", "1", time.Now(), "1", 1, 1}
-	// med.Update(database)
-	// db.GetAll(database)
-	// db.Get(database, "3")
-
-	api.Api(database)
-	database.Close()
+			for e := n.PeerBlackList.Front(); e != nil; e = e.Next() {
+				n.PeerBlackList.Remove(e)
+			}
+		} else if strings.ToLower(text) == "q\n" {
+			return
+		}
+	}
 }

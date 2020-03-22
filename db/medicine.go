@@ -25,8 +25,6 @@ func (med *Medicine) Add(db *sql.DB) {
 		log.Fatal(err)
 	}
 
-	fmt.Println(med)
-
 	stmt, err := tx.Prepare("insert into med(id, title, description, amount, pzn) values(?, ?, ?, ?, ?)")
 	if err != nil {
 		log.Fatal(err)
@@ -37,12 +35,9 @@ func (med *Medicine) Add(db *sql.DB) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("HELLO2")
+
 	tx.Commit()
 }
-
-// &{2 31 1 2020-03-22 12:44:42.188323599 +0100 CET m=+0.004346859 {0 <nil> 0 0001-01-01 00:00:00 +0000 UTC} 1 2}
-// &{aa0e9b1b-fc8f-4c70-8b55-55b051d1670a 1 1 2020-03-22 11:45:01.759 +0000 UTC {0 <nil> 0 0001-01-01 00:00:00 +0000 UTC} 1 1}
 
 // Delete Medicine from Database
 func (med *Medicine) Delete(db *sql.DB) {
@@ -95,11 +90,6 @@ func get(db *sql.DB, query string, searchStr string) ([]*Medicine, error) {
 	return meds, nil
 }
 
-// GetViaID gets Medicine via their uuid
-func GetViaID(db *sql.DB, id string) ([]*Medicine, error) {
-	return get(db, "select * from med where id=?", id)
-}
-
 // Get a specific Medicine from the Database based on the search String or the pzn
 func Get(db *sql.DB, searchStr string) ([]*Medicine, error) {
 	return get(db, "select * from med where instr(title, ?) > 0 OR instr(description, ?) > 0 or ? == cast(pzn as text)", searchStr)
@@ -121,7 +111,7 @@ func DeleteMedicineTable(db *sql.DB) {
 // CreateMedicineTable creates the Medicine Table
 func CreateMedicineTable(db *sql.DB) {
 	sqlStmt := `
-	create table med (id text not null primary key, title text, description text, amount integer, pzn integer);`
+	create table if not exists med (id integer not null primary key, title text, description text, amount integer, pzn integer);`
 
 	_, err := db.Exec(sqlStmt)
 	if err != nil {

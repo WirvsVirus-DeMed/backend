@@ -6,9 +6,11 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"github.com/WirvsVirus-DeMed/backend/db"
 	"github.com/WirvsVirus-DeMed/backend/protobuf"
 	"github.com/WirvsVirus-DeMed/backend/util"
 	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -20,23 +22,38 @@ import (
 
 const DeMedVersion = "alpha_0.1"
 
-type Node struct {
-	publicIp        net.IP
-	localPort       uint32
-	connectionLimit uint32
+var CurrentNode *Node
 
-	config      *tls.Config
-	listener    net.Listener
-	Clients     list.List
-	clientMutex sync.Mutex
+type Node struct {
+	publicIp          net.IP
+	localPort         uint32
+	connectionLimit   uint32
+	discoveryInterval time.Duration
+
+	config             *tls.Config
+	listener           net.Listener
+	Clients            list.List
+	clientMutex        sync.Mutex
+	PeerBlackList      list.List
+	PeerBlackListMutex sync.Mutex
+
+	CurrentMedicineOffersMutex  sync.Mutex
+	CurrentMedicineOffers       map[string]protobuf.MedicineOffer_Medicine
+	CurrentMedicineOffersRelays map[string]int
+	maxOfferRelays              uint32
 
 	IncomingMessageQueue  chan *MessageDescriptor
 	BroadcastMessageQueue chan *protobuf.MessageFrame
 }
 
-func (this *Node) Init(localCertFile, localKeyFile, caCertFile, serverName string, port, connectionLimit, bufferedMessages uint32) {
+func (this *Node) Init(localCertFile, localKeyFile, caCertFile, serverName string, port, connectionLimit, bufferedMessages, maxOfferRelays uint32, discoveryInterval time.Duration) {
+	CurrentNode = this
+	this.maxOfferRelays = maxOfferRelays
+	this.CurrentMedicineOffers = make(map[string]protobuf.MedicineOffer_Medicine)
 	this.Clients.Init()
+	this.PeerBlackList.Init()
 	this.publicIp = util.GetPublicIp()
+	this.discoveryInterval = discoveryInterval
 	this.connectionLimit = connectionLimit
 	this.localPort = port
 	this.IncomingMessageQueue = make(chan *MessageDescriptor, bufferedMessages)
@@ -59,10 +76,9 @@ func (this *Node) Init(localCertFile, localKeyFile, caCertFile, serverName strin
 
 	this.config = &tls.Config{
 		Certificates: []tls.Certificate{cert},
-		//RootCAs:      rootCAs,
-		ClientCAs:  rootCAs,
-		ServerName: serverName,
-		ClientAuth: tls.RequireAndVerifyClientCert,
+		ClientCAs:    rootCAs,
+		ServerName:   serverName,
+		ClientAuth:   tls.RequireAndVerifyClientCert,
 	}
 }
 
@@ -124,16 +140,26 @@ func (this *Node) HandleConnection(info *Info) {
 			return
 		} else if err != nil {
 			log.Println(err)
+			pp := PeerPunish{}
 			this.clientMutex.Lock()
 			for e := this.Clients.Front(); e != nil; e = e.Next() {
 				c := e.Value.(*Info)
 
 				if c == info {
 					this.Clients.Remove(e)
-					return
+					pp = PeerPunish{
+						Peer:  *c.Peer,
+						until: time.Now().Add(10 * time.Minute),
+					}
+					break
 				}
 			}
 			this.clientMutex.Unlock()
+
+			this.PeerBlackListMutex.Lock()
+			this.PeerBlackList.PushBack(pp)
+			this.PeerBlackListMutex.Unlock()
+			return
 		}
 
 		msgFrame := new(protobuf.MessageFrame)
@@ -159,7 +185,7 @@ func (this *Node) Listen() {
 	for {
 		conn, err := this.listener.Accept()
 		if err != nil {
-			log.Fatalf("Error while accepting client: %v", err)
+			log.Printf("Error while accepting client: %v", err)
 		}
 
 		info := Info{
@@ -178,14 +204,30 @@ func (this *Node) Connect(ip net.IP, port uint32) {
 	cfg := tls.Config{
 		Certificates: this.config.Certificates,
 		RootCAs:      this.config.ClientCAs,
-		//ClientCAs:		this.config.ClientCAs,
-		ServerName: "DeMed-Node",
-		ClientAuth: tls.RequireAndVerifyClientCert,
+		ServerName:   "DeMed-Node",
+		ClientAuth:   tls.RequireAndVerifyClientCert,
 	}
 
-	conn, err := tls.Dial("tcp", ip.String()+":"+strconv.Itoa(int(port)), &cfg)
+	tcpVersion := "tcp"
+	if ip.To4() != nil {
+		tcpVersion += "4"
+	} else {
+		tcpVersion += "6"
+	}
+
+	conn, err := tls.Dial(tcpVersion, "["+ip.String()+"]:"+strconv.Itoa(int(port)), &cfg)
 	if err != nil {
-		log.Fatalf("Could not connect to %v. Reason: %v", ip.String()+":"+strconv.Itoa(int(port)), err)
+		log.Printf("Could not connect to %v. Reason: %v", ip.String()+":"+strconv.Itoa(int(port)), err)
+		this.PeerBlackListMutex.Lock()
+		this.PeerBlackList.PushBack(PeerPunish{
+			Peer: net.TCPAddr{
+				IP:   ip,
+				Port: int(port),
+			},
+			until: time.Now().Add(10 * time.Minute),
+		})
+		this.PeerBlackListMutex.Unlock()
+		return
 	}
 
 	info := Info{
@@ -206,15 +248,86 @@ func (this *Node) BroadcastSender() {
 			return
 		}
 
-		frameData, _ := proto.Marshal(msg)
-
 		this.clientMutex.Lock()
 		for e := this.Clients.Front(); e != nil; e = e.Next() {
 			c := e.Value.(*Info)
-			c.w.Write(frameData)
-			c.w.Flush()
+			c.SendMessageFramePacked(*msg)
 		}
 		this.clientMutex.Unlock()
+	}
+}
+
+func (this *Node) PeerDiscovery() {
+	for {
+		this.PeerBlackListMutex.Lock()
+		for e := this.PeerBlackList.Front(); e != nil; e = e.Next() {
+			p := e.Value.(PeerPunish)
+
+			if p.until.Before(time.Now()) {
+				this.PeerBlackList.Remove(e)
+			}
+		}
+		this.PeerBlackListMutex.Unlock()
+
+		peers, _ := db.GetAllPeers(db.CurrentDb)
+
+		blackListShadow := new(list.List)
+		blackListShadow.Init()
+		this.PeerBlackListMutex.Lock()
+		for e := this.PeerBlackList.Front(); e != nil; e = e.Next() {
+			pp := e.Value.(PeerPunish)
+			blackListShadow.PushBack(pp)
+		}
+		this.PeerBlackListMutex.Unlock()
+
+		this.clientMutex.Lock()
+		for _, p := range peers {
+			connect := true
+
+			for e := blackListShadow.Front(); e != nil; e = e.Next() {
+				pp := e.Value.(PeerPunish)
+
+				if p.Port == uint32(pp.Peer.Port) && p.IP.Equal(pp.Peer.IP) {
+					connect = false
+					break
+				}
+			}
+			if !connect {
+				continue
+			}
+
+			for e := this.Clients.Front(); e != nil; e = e.Next() {
+				c := e.Value.(*Info)
+
+				if (c.Peer != nil && (c.Peer.IP.Equal(p.IP) && uint32(c.Peer.Port) == p.Port)) ||
+					(c.RemotePeer.IP.Equal(p.IP) && uint32(c.RemotePeer.Port) == p.Port) {
+					connect = false
+					break
+				}
+			}
+
+			if connect {
+				go this.Connect(p.IP, p.Port)
+			}
+		}
+		this.clientMutex.Unlock()
+
+		time.Sleep(this.discoveryInterval)
+	}
+}
+
+func (this *Node) TidyMedicineOffersRoutine() {
+	for {
+		this.CurrentMedicineOffersMutex.Lock()
+		for k, v := range this.CurrentMedicineOffers {
+			if t, _ := ptypes.Timestamp(v.Time); t.Before(time.Now().Add(-30 * time.Minute)) {
+				delete(this.CurrentMedicineOffers, k)
+				delete(this.CurrentMedicineOffersRelays, k)
+			}
+		}
+		this.CurrentMedicineOffersMutex.Unlock()
+
+		time.Sleep(10 * time.Minute)
 	}
 }
 
@@ -269,23 +382,54 @@ func (this *Node) HandleMessages() {
 					continue
 				}
 
-				if md.origin.RemotePubKey.N.Cmp(c.RemotePubKey.N) == 0 && md.origin.RemotePubKey.E == c.RemotePubKey.E {
+				if md.origin.RemotePubKey.N.Cmp(c.RemotePubKey.N) == 0 &&
+					md.origin.RemotePubKey.E == c.RemotePubKey.E ||
+					(c.Peer != nil && (c.Peer.IP.Equal(md.origin.Peer.IP) &&
+						c.Peer.Port == md.origin.Peer.Port)) ||
+					c.RemotePeer.IP.Equal(md.origin.Peer.IP) {
+
 					md.origin.CloseConnection()
 					clientsDirty = true
-					break
+					continue
 				}
 			}
 
+			for e := this.Clients.Front(); e != nil; e = e.Next() {
+				c := e.Value.(*Info)
+
+				if md.origin == c {
+					continue
+				}
+				if (c.Peer != nil && (c.Peer.IP.Equal(md.origin.Peer.IP) && c.Peer.Port == md.origin.Peer.Port)) ||
+					c.RemotePeer.IP.Equal(md.origin.Peer.IP) {
+					c.CloseConnection()
+					this.Clients.Remove(e)
+				}
+			}
+
+			blacklistShadow := new(list.List)
 			if clientsDirty {
+				blacklistShadow.Init()
 				for e := this.Clients.Front(); e != nil; e = e.Next() {
 					c := e.Value.(*Info)
 
 					if c.ConnectionState == Closed {
 						this.Clients.Remove(e)
+						blacklistShadow.PushBack(PeerPunish{
+							Peer:  *c.Peer,
+							until: time.Now().Add(30 * time.Minute),
+						})
 					}
 				}
 			}
 			this.clientMutex.Unlock()
+
+			this.PeerBlackListMutex.Lock()
+			for e := blacklistShadow.Front(); e != nil; e = e.Next() {
+				c := e.Value.(PeerPunish)
+				this.PeerBlackList.PushBack(c)
+			}
+			this.PeerBlackListMutex.Unlock()
 
 			if md.origin.ConnectionState == Closed {
 				continue
@@ -293,27 +437,34 @@ func (this *Node) HandleMessages() {
 
 			s := md.origin.RemotePubKey.N.String()
 
-			log.Printf("[*] %v from %v", s[0:4]+"..."+s[len(s)-5:len(s)-1], md.origin.Peer.String())
-
-			go func(info *Info, n *Node) {
-				n.clientMutex.Lock()
-
-				for e := n.Clients.Front(); e != nil; e = e.Next() {
-					c := e.Value.(*Info)
-
-					if info == c {
-						continue
-					}
-					if (c.Peer != nil && (c.Peer.IP.Equal(info.Peer.IP) && c.Peer.Port == info.Peer.Port)) ||
-						c.RemotePeer.IP.Equal(info.Peer.IP) {
-						c.CloseConnection()
-						n.Clients.Remove(e)
-					}
-				}
-				n.clientMutex.Unlock()
-			}(md.origin, this)
+			log.Printf("[*] %v from %v >> Connection Established", s[0:4]+"..."+s[len(s)-5:len(s)-1], md.origin.Peer.String())
 
 			md.origin.ConnectionState += Established
+			p := db.Peer{
+				IP:       md.origin.Peer.IP,
+				Port:     uint32(md.origin.Peer.Port),
+				LastSeen: time.Now(),
+			}
+			p.Add(db.CurrentDb)
+
+			if md.origin.incoming {
+				pk := protobuf.Hello_PublicKey{
+					N: pubKey.N.Bytes(),
+					E: int32(pubKey.E),
+				}
+
+				pb := protobuf.Hello{
+					DeMedVersion: DeMedVersion,
+					Ip:           this.publicIp,
+					Port:         this.localPort,
+					PubKey:       &pk,
+				}
+
+				md.origin.SendHello(&pb)
+			}
+
+			md.origin.SendPeerRequest()
+			md.origin.SendFullMedicineRequest()
 			break
 
 		case Goodbye:
@@ -371,6 +522,74 @@ func (this *Node) HandleMessages() {
 				go this.Connect(p.Ip, p.Port)
 			}
 
+			break
+
+		case MedicineOffer:
+			medOffer := protobuf.MedicineOffer{}
+			err := proto.Unmarshal(md.msgFrame.Payload, &medOffer)
+			if err != nil {
+				log.Printf("[*] Error while unmarshalling PeerResponse: %v\n", err)
+			}
+
+			relayList := new(list.List)
+			relayList.Init()
+
+			this.CurrentMedicineOffersMutex.Lock()
+			for _, med := range medOffer.Meds {
+				this.CurrentMedicineOffers[med.UUID] = *med
+				this.CurrentMedicineOffersRelays[med.UUID]++
+
+				if uint32(this.CurrentMedicineOffersRelays[med.UUID]) <= this.maxOfferRelays {
+					if t, _ := ptypes.Timestamp(med.Time); t.After(time.Now().Add(30 * time.Minute)) {
+						relayList.PushBack(med)
+					}
+				}
+			}
+			this.CurrentMedicineOffersMutex.Unlock()
+
+			relayArray := make([]*protobuf.MedicineOffer_Medicine, relayList.Len())
+
+			i := 0
+			for e := relayList.Front(); e != nil; e = e.Next() {
+				relayArray[i] = e.Value.(*protobuf.MedicineOffer_Medicine)
+			}
+
+			mo := protobuf.MedicineOffer{
+				Meds: relayArray,
+			}
+			payload, _ := proto.Marshal(&mo)
+
+			this.BroadcastMessageQueue <- &protobuf.MessageFrame{
+				PayloadType: uint32(MedicineOffer),
+				Time:        ptypes.TimestampNow(),
+				Payload:     payload,
+			}
+			break
+
+		case FullMedicineRequest:
+			relayList := new(list.List)
+			relayList.Init()
+
+			relayArray := make([]*protobuf.MedicineOffer_Medicine, len(this.CurrentMedicineOffers))
+
+			this.CurrentMedicineOffersMutex.Lock()
+			i := 0
+			for _, med := range this.CurrentMedicineOffers {
+				relayArray[i] = &med
+				i++
+			}
+			this.CurrentMedicineOffersMutex.Unlock()
+
+			mo := protobuf.MedicineOffer{
+				Meds: relayArray,
+			}
+			payload, _ := proto.Marshal(&mo)
+
+			this.BroadcastMessageQueue <- &protobuf.MessageFrame{
+				PayloadType: uint32(MedicineOffer),
+				Time:        ptypes.TimestampNow(),
+				Payload:     payload,
+			}
 			break
 		}
 	}

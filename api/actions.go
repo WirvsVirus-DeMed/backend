@@ -111,19 +111,86 @@ func ChangeMedRessourceReq(msg []byte, p *model.Packet, database *sql.DB) []byte
 	return jrep
 }
 
-// SearchMedRessourceReq User wants to request an search-task on all peer-clients
+// SearchMedRessourceReq User wants to request an search-task on all peer-clients -> IncommingMedRessourceResponse
 func SearchMedRessourceReq(msg []byte, p *model.Packet, database *sql.DB) []byte {
-	// IncommingMedRessourceResponse
-	return []byte{}
+	var specpacket model.SearchMedRessourceRequest
+	err := json.Unmarshal(msg, &specpacket)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//////////////////////////////////////////////////
+	// Network stuff
+	//
+	//
+	// Medicine should me in here
+	meds := []*db.Medicine{}
+	///////////////////////////////////////////////////
+
+	packet := &model.Packet{p.ID, idcounter, "SearchMedRessourceResponse"}
+	idcounter++
+	res := &model.SearchMedRessourceResponse{meds, *packet}
+
+	jrep, err := json.Marshal(res)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return jrep
 }
 
-// RequestMedRessourceRequest
+// RequestMedRessourceRequest -> IncommingMedRessourceResponse
 func RequestMedRessourceRequest(msg []byte, p *model.Packet, database *sql.DB) []byte {
-	// IncommingMedRessourceResponse
-	return []byte{}
+	var specpacket model.RequestMedRessourceRequest
+	err := json.Unmarshal(msg, &specpacket)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	/////////////////////////////////////////////////////
+	// Do something with specpacket.MedicineUUID
+	// Meds
+	meds := db.GetViaID(database, specpacket.MedicineUUID)
+	//
+	//
+	// Network stuff
+	//
+	//
+	//
+	// Fill those out with Information from the Network
+	accepted := false
+	addinfo := ""
+	///////////////////////////////////////////////////
+
+	packet := &model.Packet{p.ID, idcounter, "RequestMedRessourceResponse"}
+	idcounter++
+	res := &model.SearchMedRessourceResponse{accepted, addinfo, *packet}
+
+	jrep, err := json.Marshal(res)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return jrep
 }
+
+// type IncommingMedRessourceRequest struct {
+// 	Medicine db.Medicine `json:"ressource"`
+// 	Packet
+// }
+
+// type IncommingMedRessourceResponse struct {
+// 	Accepted bool   `json:"accepted"`
+// 	AddInfos string `json:"additionalInformation"`
+// 	Packet
+// }
+
+// IncommingMedRessourceRequest muss noch gemacht werden
 
 // IncommingMedRessourceResponse
 func IncommingMedRessourceResponse(msg []byte, p *model.Packet, database *sql.DB) []byte {
+
 	return []byte{}
 }

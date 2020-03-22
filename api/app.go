@@ -1,9 +1,12 @@
 package main // api
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 
+	"github.com/WirvsVirus-DeMed/backend/model"
 	"github.com/gorilla/websocket"
 )
 
@@ -18,18 +21,134 @@ func main() {
 
 		for {
 			// Read message from browser
-			msgType, msg, err := conn.ReadMessage()
+			_, msg, err := conn.ReadMessage()
 			if err != nil {
 				return
 			}
 
+			var packet model.Packet
+			err = json.Unmarshal(msg, &packet)
+			fmt.Println(packet)
+
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			// Silly and not Clean but Golang has no fricking Generics
+			if packet.Type == "BackendStateResponse" {
+				var specpacket model.BackendStateResponse
+				err = json.Unmarshal(msg, &specpacket)
+
+				if err != nil {
+					log.Fatal(err)
+				}
+				fmt.Println(specpacket)
+			} else if packet.Type == "ProivideMedRessourceRequest" {
+				var specpacket model.ProivideMedRessourceRequest
+				err = json.Unmarshal(msg, &specpacket)
+
+				if err != nil {
+					log.Fatal(err)
+				}
+				fmt.Println(specpacket)
+			} else if packet.Type == "ProvideMedRessourceResponse" {
+				var specpacket model.ProvideMedRessourceResponse
+				err = json.Unmarshal(msg, &specpacket)
+
+				if err != nil {
+					log.Fatal(err)
+				}
+				fmt.Println(specpacket)
+			} else if packet.Type == "SearchMedRessourceRequest" {
+				var specpacket model.SearchMedRessourceRequest
+				err = json.Unmarshal(msg, &specpacket)
+
+				if err != nil {
+					log.Fatal(err)
+				}
+				fmt.Println(specpacket)
+			} else if packet.Type == "SearchMedRessourceResponse" {
+				var specpacket model.SearchMedRessourceResponse
+				err = json.Unmarshal(msg, &specpacket)
+
+				if err != nil {
+					log.Fatal(err)
+				}
+				fmt.Println(specpacket)
+			} else if packet.Type == "RequestMedRessourceRequest" {
+				var specpacket model.RequestMedRessourceRequest
+				err = json.Unmarshal(msg, &specpacket)
+
+				if err != nil {
+					log.Fatal(err)
+				}
+				fmt.Println(specpacket)
+			} else if packet.Type == "RequestMedRessourceResponse" {
+				var specpacket model.RequestMedRessourceResponse
+				err = json.Unmarshal(msg, &specpacket)
+
+				if err != nil {
+					log.Fatal(err)
+				}
+				fmt.Println(specpacket)
+			} else if packet.Type == "BackendStateRequest" {
+				var specpacket model.BackendStateRequest
+				err = json.Unmarshal(msg, &specpacket)
+
+				if err != nil {
+					log.Fatal(err)
+				}
+				fmt.Println(specpacket)
+			} else if packet.Type == "BackendStateResponse" {
+				var specpacket model.BackendStateResponse
+				err = json.Unmarshal(msg, &specpacket)
+
+				if err != nil {
+					log.Fatal(err)
+				}
+				fmt.Println(specpacket)
+			} else if packet.Type == "ChangeMedRessourceRequest" {
+				var specpacket model.ChangeMedRessourceRequest
+				err = json.Unmarshal(msg, &specpacket)
+
+				if err != nil {
+					log.Fatal(err)
+				}
+				fmt.Println(specpacket)
+			} else if packet.Type == "ChangeMedRessourceResponse" {
+				var specpacket model.ChangeMedRessourceResponse
+				err = json.Unmarshal(msg, &specpacket)
+
+				if err != nil {
+					log.Fatal(err)
+				}
+				fmt.Println(specpacket)
+			} else if packet.Type == "IncommingMedRessourceResponse" {
+				var specpacket model.IncommingMedRessourceResponse
+				err = json.Unmarshal(msg, &specpacket)
+
+				if err != nil {
+					log.Fatal(err)
+				}
+				fmt.Println(specpacket)
+			}
+
+			// med := []db.Medicine{}
+			// rep := &Packet{1, -1, "BackendStateResponse", }
+			// jrep, err := json.Marshal(rep)
+			// fmt.Println("jrep")
+			// fmt.Println(string(jrep))
+			// if err != nil {
+			// 	log.Fatal(err)
+			// }
+
 			// Print the message to the console
-			fmt.Printf("%s sent: %s\n", conn.RemoteAddr(), string(msg))
+			// fmt.Printf("%s sent: %s\n", conn.RemoteAddr(), string(msg))
 
 			// Write message back to browser
-			if err = conn.WriteMessage(msgType, msg); err != nil {
-				return
-			}
+			// if err = conn.WriteMessage(msgType, jrep); err != nil {
+			// 	return
+			// }
 		}
 	})
 

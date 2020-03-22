@@ -10,7 +10,6 @@ import (
 
 // Peer for caching the Doctors office
 type Peer struct {
-	ID       int
 	IP       net.IP
 	Port     uint32
 	LastSeen time.Time
@@ -23,13 +22,13 @@ func (peer *Peer) Add(db *sql.DB) {
 		log.Fatal(err)
 	}
 
-	stmt, err := tx.Prepare("insert into peer(id, ip, port, lastSeen) values(?, ?, ?, ?)")
+	stmt, err := tx.Prepare("insert into peer(ip, port, lastSeen) values(?, ?, ?)")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(peer.ID, peer.IP, peer.Port, peer.LastSeen)
+	_, err = stmt.Exec(peer.IP, peer.Port, peer.LastSeen)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -39,7 +38,7 @@ func (peer *Peer) Add(db *sql.DB) {
 
 // Delete Peer from Database
 func (peer *Peer) Delete(db *sql.DB) {
-	_, err := db.Exec("delete from peer where id=?", peer.ID)
+	_, err := db.Exec("delete from peer where ip=? and port=?", peer.IP, peer.Port)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -52,7 +51,7 @@ func (peer *Peer) Update(db *sql.DB) {
 }
 
 // get wrapper to find a set of results
-func getPeers(db *sql.DB, query string, searchStr string) ([]*Peer, error) {
+func GetPeers(db *sql.DB, query string, searchStr string) ([]*Peer, error) {
 	// SELECT * FROM table WHERE instr(title, searchStr) > 0 OR instr(description, searchStr) > 0 OR searchStr == CAST(pzn as text)
 	// SELECT * FROM peer WHERE instr(title, '3') > 0 OR instr(description, '3') > 0 OR '3' == CAST(pzn as text);
 
@@ -65,19 +64,18 @@ func getPeers(db *sql.DB, query string, searchStr string) ([]*Peer, error) {
 	var peers []*Peer
 
 	for rows.Next() {
-		var id int
 		var ip net.IP
 		var port uint32
 		var lastSeen time.Time
 
-		err = rows.Scan(&id, &ip, &port, &lastSeen)
+		err = rows.Scan(&ip, &port, &lastSeen)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		peer := &Peer{id, ip, port, lastSeen}
+		peer := &Peer{ip, port, lastSeen}
 		peers = append(peers, peer)
-		fmt.Println(id, ip, port, lastSeen)
+		fmt.Println(ip, port, lastSeen)
 	}
 	err = rows.Err()
 	if err != nil {
@@ -90,12 +88,12 @@ func getPeers(db *sql.DB, query string, searchStr string) ([]*Peer, error) {
 // TODO:
 // Get a specific peer from the Database based on the search String or the pzn
 // func Get(db *sql.DB, searchStr string) ([]*Peer, error) {
-// 	return getPeers(db, "select * from peer where instr(title, ?) > 0 OR instr(description, ?) > 0 or ? == cast(pzn as text)", searchStr)
+// 	return GetPeers(db, "select * from peer where instr(title, ?) > 0 OR instr(description, ?) > 0 or ? == cast(pzn as text)", searchStr)
 // }
 
 // GetAllPeers all the rows of the Database
 func GetAllPeers(db *sql.DB) ([]*Peer, error) {
-	return getPeers(db, "select * from peer", "")
+	return GetPeers(db, "select * from peer", "")
 }
 
 // DeletePeerTable deletes Peerbacke from Database
@@ -109,7 +107,8 @@ func DeletePeerTable(db *sql.DB) {
 // CreatePeerTable creates the Peer Table
 func CreatePeerTable(db *sql.DB) {
 	sqlStmt := `
-	create table peer (id integer not null primary key, ip blob, port integer, lastSeen timestamp);`
+	create table if not exists peer (ip blob not null, port integer not null, lastSeen timestamp);
+	create unique index peer_index on peer (ip, port);`
 
 	_, err := db.Exec(sqlStmt)
 	if err != nil {

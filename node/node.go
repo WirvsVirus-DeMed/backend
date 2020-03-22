@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"github.com/WirvsVirus-DeMed/backend/db"
 	"github.com/WirvsVirus-DeMed/backend/protobuf"
 	"github.com/WirvsVirus-DeMed/backend/util"
 	"github.com/golang/protobuf/proto"
@@ -21,9 +22,10 @@ import (
 const DeMedVersion = "alpha_0.1"
 
 type Node struct {
-	publicIp        net.IP
-	localPort       uint32
-	connectionLimit uint32
+	publicIp          net.IP
+	localPort         uint32
+	connectionLimit   uint32
+	discoveryInterval time.Duration
 
 	config      *tls.Config
 	listener    net.Listener
@@ -34,9 +36,10 @@ type Node struct {
 	BroadcastMessageQueue chan *protobuf.MessageFrame
 }
 
-func (this *Node) Init(localCertFile, localKeyFile, caCertFile, serverName string, port, connectionLimit, bufferedMessages uint32) {
+func (this *Node) Init(localCertFile, localKeyFile, caCertFile, serverName string, port, connectionLimit, bufferedMessages uint32, discoveryInterval time.Duration) {
 	this.Clients.Init()
 	this.publicIp = util.GetPublicIp()
+	this.discoveryInterval = discoveryInterval
 	this.connectionLimit = connectionLimit
 	this.localPort = port
 	this.IncomingMessageQueue = make(chan *MessageDescriptor, bufferedMessages)
@@ -59,10 +62,9 @@ func (this *Node) Init(localCertFile, localKeyFile, caCertFile, serverName strin
 
 	this.config = &tls.Config{
 		Certificates: []tls.Certificate{cert},
-		//RootCAs:      rootCAs,
-		ClientCAs:  rootCAs,
-		ServerName: serverName,
-		ClientAuth: tls.RequireAndVerifyClientCert,
+		ClientCAs:    rootCAs,
+		ServerName:   serverName,
+		ClientAuth:   tls.RequireAndVerifyClientCert,
 	}
 }
 
@@ -269,10 +271,28 @@ func (this *Node) HandleMessages() {
 					continue
 				}
 
-				if md.origin.RemotePubKey.N.Cmp(c.RemotePubKey.N) == 0 && md.origin.RemotePubKey.E == c.RemotePubKey.E {
+				if md.origin.RemotePubKey.N.Cmp(c.RemotePubKey.N) == 0 &&
+					md.origin.RemotePubKey.E == c.RemotePubKey.E ||
+					(c.Peer != nil && (c.Peer.IP.Equal(md.origin.Peer.IP) &&
+						c.Peer.Port == md.origin.Peer.Port)) ||
+					c.RemotePeer.IP.Equal(md.origin.Peer.IP) {
+
 					md.origin.CloseConnection()
 					clientsDirty = true
-					break
+					continue
+				}
+			}
+
+			for e := this.Clients.Front(); e != nil; e = e.Next() {
+				c := e.Value.(*Info)
+
+				if md.origin == c {
+					continue
+				}
+				if (c.Peer != nil && (c.Peer.IP.Equal(md.origin.Peer.IP) && c.Peer.Port == md.origin.Peer.Port)) ||
+					c.RemotePeer.IP.Equal(md.origin.Peer.IP) {
+					c.CloseConnection()
+					this.Clients.Remove(e)
 				}
 			}
 
@@ -293,27 +313,31 @@ func (this *Node) HandleMessages() {
 
 			s := md.origin.RemotePubKey.N.String()
 
-			log.Printf("[*] %v from %v", s[0:4]+"..."+s[len(s)-5:len(s)-1], md.origin.Peer.String())
-
-			go func(info *Info, n *Node) {
-				n.clientMutex.Lock()
-
-				for e := n.Clients.Front(); e != nil; e = e.Next() {
-					c := e.Value.(*Info)
-
-					if info == c {
-						continue
-					}
-					if (c.Peer != nil && (c.Peer.IP.Equal(info.Peer.IP) && c.Peer.Port == info.Peer.Port)) ||
-						c.RemotePeer.IP.Equal(info.Peer.IP) {
-						c.CloseConnection()
-						n.Clients.Remove(e)
-					}
-				}
-				n.clientMutex.Unlock()
-			}(md.origin, this)
+			log.Printf("[*] %v from %v >> Connection Established", s[0:4]+"..."+s[len(s)-5:len(s)-1], md.origin.Peer.String())
 
 			md.origin.ConnectionState += Established
+			p := db.Peer{
+				IP:       md.origin.Peer.IP,
+				Port:     uint32(md.origin.Peer.Port),
+				LastSeen: time.Now(),
+			}
+			p.Add(db.CurrentDb)
+
+			if md.origin.incoming {
+				pk := protobuf.Hello_PublicKey{
+					N: pubKey.N.Bytes(),
+					E: int32(pubKey.E),
+				}
+
+				pb := protobuf.Hello{
+					DeMedVersion: DeMedVersion,
+					Ip:           this.publicIp,
+					Port:         this.localPort,
+					PubKey:       &pk,
+				}
+
+				md.origin.SendHello(&pb)
+			}
 			break
 
 		case Goodbye:
@@ -373,5 +397,26 @@ func (this *Node) HandleMessages() {
 
 			break
 		}
+	}
+}
+
+func (this *Node) PeerDiscovery() {
+	for {
+		peers, _ := db.GetAllPeers(db.CurrentDb)
+
+		this.clientMutex.Lock()
+		for _, p := range peers {
+			for e := this.Clients.Front(); e != nil; e = e.Next() {
+				c := e.Value.(*Info)
+
+				if (c.Peer != nil && (!c.Peer.IP.Equal(p.IP) || uint32(c.Peer.Port) != p.Port)) ||
+					!c.RemotePeer.IP.Equal(p.IP) || uint32(c.RemotePeer.Port) == p.Port {
+					go this.Connect(p.IP, p.Port)
+				}
+			}
+		}
+		this.clientMutex.Unlock()
+
+		time.Sleep(this.discoveryInterval)
 	}
 }

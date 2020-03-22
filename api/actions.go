@@ -112,6 +112,18 @@ func ChangeMedRessourceReq(msg []byte, p *model.Packet, database *sql.DB) []byte
 }
 
 // SearchMedRessourceReq User wants to request an search-task on all peer-clients
-// func SearchMedRessourceReq(msg []byte, p *model.Packet, database *sql.DB) []byte {
+func SearchMedRessourceReq(msg []byte, p *model.Packet, database *sql.DB) []byte {
+	// IncommingMedRessourceResponse
+	return []byte{}
+}
 
-// }
+// RequestMedRessourceRequest
+func RequestMedRessourceRequest(msg []byte, p *model.Packet, database *sql.DB) []byte {
+	// IncommingMedRessourceResponse
+	return []byte{}
+}
+
+// IncommingMedRessourceResponse
+func IncommingMedRessourceResponse(msg []byte, p *model.Packet, database *sql.DB) []byte {
+	return []byte{}
+}

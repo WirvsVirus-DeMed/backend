@@ -27,7 +27,7 @@ func Api(database *sql.DB) {
 		"RequestMedRessourceRequest":    HandleBackendStateReq,
 		"RequestMedRessourceResponse":   HandleBackendStateReq,
 		"BackendStateRequest":           HandleBackendStateReq, // Hier
-		"ChangeMedRessourceRequest":     HandleBackendStateReq,
+		"ChangeMedRessourceRequest":     ChangeMedRessourceReq,
 		"IncommingMedRessourceResponse": HandleBackendStateReq,
 	}
 

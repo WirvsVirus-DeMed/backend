@@ -95,6 +95,11 @@ func get(db *sql.DB, query string, searchStr string) ([]*Medicine, error) {
 	return meds, nil
 }
 
+// GetViaID gets Medicine via their uuid
+func GetViaID(db *sql.DB, id string) ([]*Medicine, error) {
+	return get(db, "select * from med where id=?", id)
+}
+
 // Get a specific Medicine from the Database based on the search String or the pzn
 func Get(db *sql.DB, searchStr string) ([]*Medicine, error) {
 	return get(db, "select * from med where instr(title, ?) > 0 OR instr(description, ?) > 0 or ? == cast(pzn as text)", searchStr)

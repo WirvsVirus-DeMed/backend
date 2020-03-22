@@ -9,64 +9,64 @@ type Packet struct {
 	// Data       map[string]interface{} `json:"data"`
 }
 
-type ProivideMedRessourceRequest struct {
-	Packet   Packet
+type ProvideMedRessourceRequest struct {
 	Medicine db.Medicine `json:"ressource"`
+	Packet
 }
 
 type ProvideMedRessourceResponse struct {
-	Packet  Packet
 	Success bool `json:"success"`
+	Packet
 }
 
 type SearchMedRessourceRequest struct {
-	Packet   Packet
 	Keywords []string `json:"keywords"`
+	Packet
 }
 
 type SearchMedRessourceResponse struct {
-	Packet    Packet
 	Medicines []db.Medicine `json:"ressources"`
+	Packet
 }
 
 type RequestMedRessourceRequest struct {
-	Packet       Packet
 	MedicineUUID string `json:"ressourceUuid"`
+	Packet
 }
 
 type RequestMedRessourceResponse struct {
-	Packet   Packet
 	Accepted bool   `json:"accepted"`
 	AddInfo  string `json:"additionalInformation"`
+	Packet
 }
 
 type BackendStateRequest struct {
-	Packet Packet
+	Packet
 }
 
 type BackendStateResponse struct {
-	Packet   Packet
 	OwnItems []db.Medicine `json:"ownItems"`
+	Packet
 }
 
 type ChangeMedRessourceRequest struct {
-	Packet         Packet
 	MedicineUUID   string      `json:"ressourceUuid"`
 	Remove         bool        `json:"remove"`
 	EditedMedicine db.Medicine `json:"editedRessource"`
+	Packet
 }
 
 type ChangeMedRessourceResponse struct {
-	Packet Packet
+	Packet
 }
 
 type IncommingMedRessourceRequest struct {
-	Packet   Packet
 	Medicine db.Medicine `json:"ressource"`
+	Packet
 }
 
 type IncommingMedRessourceResponse struct {
-	Packet   Packet
 	Accepted bool   `json:"accepted"`
 	AddInfos string `json:"additionalInformation"`
+	Packet
 }

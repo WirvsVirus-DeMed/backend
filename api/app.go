@@ -21,12 +21,12 @@ var upgrader = websocket.Upgrader{
 func Api(database *sql.DB) {
 	// TODO Action hinzufügen
 	actions := map[string]Action{
-		"ProvideMedRessourceRequest":    HandleBackendStateReq,
+		"ProvideMedRessourceRequest":    ProvideMedRessourceReq,
 		"SearchMedRessourceRequest":     HandleBackendStateReq,
 		"SearchMedRessourceResponse":    HandleBackendStateReq,
 		"RequestMedRessourceRequest":    HandleBackendStateReq,
 		"RequestMedRessourceResponse":   HandleBackendStateReq,
-		"BackendStateRequest":           HandleBackendStateReq,
+		"BackendStateRequest":           HandleBackendStateReq, // Hier
 		"ChangeMedRessourceRequest":     HandleBackendStateReq,
 		"IncommingMedRessourceResponse": HandleBackendStateReq,
 	}

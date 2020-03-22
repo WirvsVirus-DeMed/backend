@@ -1,8 +1,6 @@
 package main
 
 import (
-	"time"
-
 	"github.com/WirvsVirus-DeMed/backend/api"
 	"github.com/WirvsVirus-DeMed/backend/db"
 )
@@ -42,8 +40,8 @@ func main() {
 
 	database, _ := db.CreateDataBase()
 	db.CreateMedicineTable(database)
-	med := &db.Medicine{"1", "21", "1", time.Now(), "1", 1, 1}
-	med2 := &db.Medicine{"2", "31", "1", time.Now(), "1", 1, 2}
+	med := &db.Medicine{"1", "21", "1", db.Peer{}, 1, 1}
+	med2 := &db.Medicine{"2", "31", "1", db.Peer{}, 1, 2}
 
 	med.Add(database)
 	med2.Add(database)

@@ -1,0 +1,13 @@
+syntax = "proto3";
+package DeMed;
+
+option go_package = "protobuf";
+
+message PeerResponse {
+    message Peer {
+        bytes Ip = 1;
+        uint32 Port = 2;
+    }
+
+    repeated Peer Peers = 1;
+}

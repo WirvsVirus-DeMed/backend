@@ -1,0 +1,11 @@
+syntax = "proto3";
+package DeMed;
+
+option go_package = "protobuf";
+
+message MessageBroadcast {
+    bytes Origin = 1;
+    bytes Hash = 2;
+    string Text = 3;
+    string Subject = 4;
+}

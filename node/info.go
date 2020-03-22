@@ -45,7 +45,7 @@ func (this *Info) SendPeerRequest() {
 func (this *Info) SendPeerResponse(message protobuf.PeerResponse) {
 	data, _ := proto.Marshal(&message)
 
-	this.SendMessageFrame(data, PeerRequest)
+	this.SendMessageFrame(data, PeerResponse)
 }
 func (this *Info) SendHello(message *protobuf.Hello) {
 	data, _ := proto.Marshal(message)

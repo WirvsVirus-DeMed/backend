@@ -16,7 +16,7 @@ cd backend
 ```
 Die Submodule des Projektes installieren:
 ``` bash 
-git submodule --init 
+git submodule update --init
 ```
 ``` bash 
 git submodule update --remote 

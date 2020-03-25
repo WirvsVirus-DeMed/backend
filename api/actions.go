@@ -152,7 +152,7 @@ func RequestMedRessourceRequest(msg []byte, p *model.Packet, database *sql.DB) [
 	/////////////////////////////////////////////////////
 	// Do something with specpacket.MedicineUUID
 	// Meds
-	meds := db.GetViaID(database, specpacket.MedicineUUID)
+	meds, _ := db.GetViaID(database, specpacket.MedicineUUID)
 	//
 	//
 	// Network stuff
@@ -160,13 +160,13 @@ func RequestMedRessourceRequest(msg []byte, p *model.Packet, database *sql.DB) [
 	//
 	//
 	// Fill those out with Information from the Network
-	accepted := false
-	addinfo := ""
+	// accepted := false
+	// addinfo := ""
 	///////////////////////////////////////////////////
 
 	packet := &model.Packet{p.ID, idcounter, "RequestMedRessourceResponse"}
 	idcounter++
-	res := &model.SearchMedRessourceResponse{accepted, addinfo, *packet}
+	res := &model.SearchMedRessourceResponse{meds, *packet}
 
 	jrep, err := json.Marshal(res)
 	if err != nil {

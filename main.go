@@ -1,6 +1,9 @@
 package main
 
-import "github.com/WirvsVirus-DeMed/backend/api"
+import (
+	"github.com/WirvsVirus-DeMed/backend/api"
+	"github.com/WirvsVirus-DeMed/backend/db"
+)
 
 func main() {
 	// log.SetOutput(os.Stdout)
@@ -47,5 +50,19 @@ func main() {
 	// 		return
 	// 	}
 	// }
-	api.Api()
+	database, _ := db.CreateDataBase()
+	defer database.Close()
+
+	db.CreateMedicineTable(database)
+	// med := &db.Medicine{"1", "21", "1", db.Peer{}, 1, 1}
+	// med2 := &db.Medicine{"2", "31", "1", db.Peer{}, 1, 2}
+
+	// med.Add(database)
+	// med2.Add(database)
+	// med = &db.Medicine{"1", "2", "1", time.Now(), "1", 1, 1}
+	// med.Update(database)
+	// db.GetAll(database)
+	// db.Get(database, "3")
+
+	api.Api(database)
 }

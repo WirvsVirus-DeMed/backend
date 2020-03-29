@@ -30,6 +30,9 @@ func Api(database *sql.DB) {
 	}
 
 	http.HandleFunc("/websocket", func(w http.ResponseWriter, r *http.Request) {
+		// For now allow all connections
+		upgrader.CheckOrigin = func(r *http.Request) bool { return true }
+
 		conn, _ := upgrader.Upgrade(w, r, nil) // error ignored for sake of simplicity
 
 		for {

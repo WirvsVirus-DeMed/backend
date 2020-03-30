@@ -1,7 +1,7 @@
 version: "3"
 services:
   backend:
-    image: demed
+    image: demed # backend if we split frontend and backend
     # container_name: backend
     ports:
       - 8080:8080

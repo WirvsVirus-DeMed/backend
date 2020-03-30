@@ -25,3 +25,10 @@ Den Code ausführen (und golang Bibliotheken downloaden):
 ``` bash
 go run ./main.go
 ```
+ODER mit Docker:
+``` bash
+docker build -t demed .
+````
+``` bash
+docker run -it -p 8080:8080 demed
+```

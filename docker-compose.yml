@@ -1,0 +1,8 @@
+version: "3"
+services:
+  backend:
+    image: demed
+    # container_name: backend
+    ports:
+      - 8080:8080
+  # web: maybe if splitting them up
